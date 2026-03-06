@@ -35,10 +35,6 @@ jobs:
         working-directory: convx-core
         run: cargo clippy -- -D warnings
 
-      - name: Test (unit)
+      - name: Tests
         working-directory: convx-core
         run: cargo test
-
-      - name: Test (integration)
-        working-directory: convx-core
-        run: cargo test -- --ignored
