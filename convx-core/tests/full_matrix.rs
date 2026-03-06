@@ -331,6 +331,7 @@ fn build_audio_sources(
 }
 
 #[test]
+#[ignore] // Requires fully-equipped system (HEIC/AVIF encoding support)
 fn full_matrix_image_targets() {
     let (engine, temp) = setup();
     let image_input = temp.path().join("sample.png");
@@ -345,6 +346,7 @@ fn full_matrix_image_targets() {
 }
 
 #[test]
+#[ignore] // Requires ffmpeg with full codec support
 fn full_matrix_video_targets() {
     let (engine, temp) = setup();
     let video_input = temp.path().join("sample.mp4");
@@ -359,6 +361,7 @@ fn full_matrix_video_targets() {
 }
 
 #[test]
+#[ignore] // Requires ffmpeg with full codec support
 fn full_matrix_audio_targets() {
     let (engine, temp) = setup();
     let audio_input = temp.path().join("sample.wav");
