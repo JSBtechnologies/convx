@@ -19,7 +19,9 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libvips-tools
+          sudo apt-get install -y ffmpeg libvips-tools libvips-dev \
+            libheif-dev libheif1 libde265-dev libx265-dev \
+            pandoc poppler-utils
 
       - name: Generate fixtures
         working-directory: convx-core
