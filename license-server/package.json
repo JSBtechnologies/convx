@@ -1,0 +1,22 @@
+{
+  "name": "convx-license-server",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "generate-keypair": "npx tsx scripts/generate-keypair.ts",
+    "migrate:d1-to-supabase": "npx tsx scripts/migrate-d1-to-supabase.ts"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^2.1.0",
+    "@noble/hashes": "^1.4.0",
+    "@supabase/supabase-js": "^2.49.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240529.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^4.68.1"
+  }
+}

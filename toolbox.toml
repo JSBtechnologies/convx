@@ -1,0 +1,70 @@
+[tool]
+name = "convx"
+version = "0.1.0"
+description = "Universal file converter — convert between 100+ formats (images, video, audio, documents) via MCP"
+author = "Agent Toolbox"
+homepage = "https://convx.dev"
+license = "Proprietary"
+
+[binary]
+entry = "convx-mcp"
+platforms = ["darwin-arm64", "darwin-x64", "linux-x64"]
+
+[runtime]
+args = []
+transport = "stdio"
+env = {}
+
+[permissions]
+filesystem = [
+    "read:~/",
+    "write:~/",
+    "read:/tmp",
+    "write:/tmp"
+]
+network = false
+env_vars = []
+allow_exec = true       # ConvX shells out to ffmpeg, libvips, etc.
+max_memory_mb = 1024
+max_cpu_percent = 90
+
+# Distribution — binary URL will be set when release builds are available
+# [distribution]
+# binary_url = "https://github.com/..."
+# sha256 = ""
+
+[[mcp.tools]]
+name = "convert_file"
+description = "Convert a single file from one format to another with optional presets and size constraints"
+
+[[mcp.tools]]
+name = "batch_convert"
+description = "Convert multiple files in a batch operation with shared conversion settings"
+
+[[mcp.tools]]
+name = "get_supported_formats"
+description = "List all supported input and output file formats"
+
+[[mcp.tools]]
+name = "get_conversion_targets"
+description = "Get available target formats for a given input format"
+
+[[mcp.tools]]
+name = "can_convert"
+description = "Check if a conversion path exists between two formats"
+
+[[mcp.tools]]
+name = "get_file_info"
+description = "Get metadata about a file including format, size, dimensions, and codec information"
+
+[[mcp.tools]]
+name = "list_presets"
+description = "List available conversion presets (e.g. web-optimized, thumbnail, compressed)"
+
+[[mcp.tools]]
+name = "get_preset"
+description = "Get detailed configuration for a specific conversion preset"
+
+[[mcp.tools]]
+name = "check_dependencies"
+description = "Verify that required system dependencies (ffmpeg, libvips, etc.) are installed"

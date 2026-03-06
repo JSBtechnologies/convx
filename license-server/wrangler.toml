@@ -1,0 +1,16 @@
+name = "convx-license-server"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[vars]
+RECHECK_DAYS = "30"
+EMAIL_FROM = "ConvX <license@convx.dev>"
+
+# Secrets (set via `wrangler secret put`):
+# SUPABASE_URL - Supabase project URL (https://xxx.supabase.co)
+# SUPABASE_SERVICE_KEY - Supabase service role key (for server-side access)
+# ED25519_PRIVATE_KEY - hex-encoded 32-byte seed
+# ADMIN_SECRET - bearer token for admin endpoints
+# LEMONSQUEEZY_WEBHOOK_SECRET - HMAC signing secret from LemonSqueezy webhook settings
+# RESEND_API_KEY - Resend email API key (re_...)
+# TURNSTILE_SECRET_KEY - Cloudflare Turnstile secret key

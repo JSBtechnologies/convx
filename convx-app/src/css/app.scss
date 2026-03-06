@@ -1,0 +1,66 @@
+@import './glass.scss';
+
+body {
+  background-color: #0D0F14;
+  color: rgba(255, 255, 255, 0.87);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.body--dark {
+  --q-dark: #0D0F14;
+  --q-dark-page: #080A0E;
+}
+
+// Scrollbar
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+// Utility classes
+.text-glass {
+  color: rgba(255, 255, 255, 0.65);
+}
+.text-glass-bright {
+  color: rgba(255, 255, 255, 0.87);
+}
+.glass-panel {
+  @include glass-panel;
+}
+.glass-card {
+  @include glass-card;
+}
+.mono {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+}
+
+// Accessibility: focus-visible
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid rgba($primary, 0.7);
+  outline-offset: 2px;
+}
+
+// Accessibility: prefers-reduced-motion
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

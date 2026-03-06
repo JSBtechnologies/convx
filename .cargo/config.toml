@@ -1,0 +1,5 @@
+[env]
+# Ed25519 public key for license signature verification.
+# This must match the server's ED25519_PRIVATE_KEY.
+# Override by setting CONVX_LICENSE_PUBKEY in your environment.
+CONVX_LICENSE_PUBKEY = { value = "3ede8773c0e82ec430310ab8fb4344562f4c4a3f5d97c41b5e48aaceccf8fc18", force = false }
