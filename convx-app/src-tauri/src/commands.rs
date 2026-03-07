@@ -1,7 +1,6 @@
 use convx::{
-    license,
-    license::enterprise::ConversionAuditEvent,
-    ConversionOptions, ConversionStatus, ConvxEngine, DependencyChecker, Format, FormatCategory,
+    license, license::enterprise::ConversionAuditEvent, ConversionOptions, ConversionStatus,
+    ConvxEngine, DependencyChecker, Format, FormatCategory,
 };
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -411,7 +410,9 @@ pub fn install_single_dependency(name: String) -> JsDependencyStatus {
 
         if let Some(brew) = brew {
             // Validate package name to prevent installing arbitrary packages
-            if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '.' || c == '_' || c == '+' || c == '@') {
+            if !name.chars().all(|c| {
+                c.is_alphanumeric() || c == '-' || c == '.' || c == '_' || c == '+' || c == '@'
+            }) {
                 return JsDependencyStatus {
                     ok: false,
                     message: format!("Invalid package name: {}", name),
@@ -472,25 +473,28 @@ pub fn install_single_dependency(name: String) -> JsDependencyStatus {
         }
 
         // Validate package name to prevent command injection
-        if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '.' || c == '_' || c == '+' || c == '@') {
+        if !name.chars().all(|c| {
+            c.is_alphanumeric() || c == '-' || c == '.' || c == '_' || c == '+' || c == '@'
+        }) {
             return JsDependencyStatus {
                 ok: false,
                 message: format!("Invalid package name: {}", name),
             };
         }
 
-        let (cmd, args): (&str, Vec<&str>) = if Command::new("apt-get").arg("--version").output().is_ok() {
-            ("sudo", vec!["apt-get", "install", "-y", &name])
-        } else if Command::new("dnf").arg("--version").output().is_ok() {
-            ("sudo", vec!["dnf", "install", "-y", &name])
-        } else if Command::new("pacman").arg("--version").output().is_ok() {
-            ("sudo", vec!["pacman", "-S", "--noconfirm", &name])
-        } else {
-            return JsDependencyStatus {
-                ok: false,
-                message: "No supported package manager found.".to_string(),
+        let (cmd, args): (&str, Vec<&str>) =
+            if Command::new("apt-get").arg("--version").output().is_ok() {
+                ("sudo", vec!["apt-get", "install", "-y", &name])
+            } else if Command::new("dnf").arg("--version").output().is_ok() {
+                ("sudo", vec!["dnf", "install", "-y", &name])
+            } else if Command::new("pacman").arg("--version").output().is_ok() {
+                ("sudo", vec!["pacman", "-S", "--noconfirm", &name])
+            } else {
+                return JsDependencyStatus {
+                    ok: false,
+                    message: "No supported package manager found.".to_string(),
+                };
             };
-        };
 
         match Command::new(cmd).args(&args).output() {
             Ok(out) if out.status.success() => JsDependencyStatus {
@@ -584,25 +588,37 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
     {
         // Detect where the app is actually running from (unified binary)
         let exe_path = std::env::current_exe().ok();
-        let macos_dir = exe_path.as_ref().and_then(|e| e.parent().map(|p| p.to_path_buf()));
-        let contents_dir = macos_dir.as_ref().and_then(|m| m.parent().map(|p| p.to_path_buf()));
+        let macos_dir = exe_path
+            .as_ref()
+            .and_then(|e| e.parent().map(|p| p.to_path_buf()));
+        let contents_dir = macos_dir
+            .as_ref()
+            .and_then(|m| m.parent().map(|p| p.to_path_buf()));
         // convx-cli and convx-mcp are symlinks to the main binary
         let cli_bin = macos_dir.as_ref().map(|m| m.join("convx-cli"));
         let mcp_bin = macos_dir.as_ref().map(|m| m.join("convx-mcp"));
 
         // Find the wheels directory relative to wherever the app is running
-        let wheels_dir = contents_dir.as_ref().map(|c| c.join("Resources").join("wheels"));
+        let wheels_dir = contents_dir
+            .as_ref()
+            .map(|c| c.join("Resources").join("wheels"));
 
         // Ensure in-bundle symlinks exist (convx-cli -> main binary)
         if let (Some(ref exe), Some(ref cli)) = (&exe_path, &cli_bin) {
             if !cli.exists() && !cli.is_symlink() {
-                let exe_name = exe.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                let exe_name = exe
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
                 let _ = std::os::unix::fs::symlink(&exe_name, cli);
             }
         }
         if let (Some(ref exe), Some(ref mcp)) = (&exe_path, &mcp_bin) {
             if !mcp.exists() && !mcp.is_symlink() {
-                let exe_name = exe.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                let exe_name = exe
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
                 let _ = std::os::unix::fs::symlink(&exe_name, mcp);
             }
         }
@@ -622,7 +638,9 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
                     // Try /usr/local/bin first (may need root)
                     let _ = std::fs::remove_file(symlink_path); // remove stale symlink
                     match std::os::unix::fs::symlink(cli, symlink_path) {
-                        Ok(()) => repairs.push("Created CLI symlink: /usr/local/bin/convx".to_string()),
+                        Ok(()) => {
+                            repairs.push("Created CLI symlink: /usr/local/bin/convx".to_string())
+                        }
                         Err(_) => {
                             // Fall back to ~/.local/bin (no root needed)
                             if let Ok(home) = std::env::var("HOME") {
@@ -632,10 +650,15 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
                                 let _ = std::fs::remove_file(&local_symlink);
                                 match std::os::unix::fs::symlink(cli, &local_symlink) {
                                     Ok(()) => {
-                                        repairs.push(format!("Created CLI symlink: {}", local_symlink.display()));
+                                        repairs.push(format!(
+                                            "Created CLI symlink: {}",
+                                            local_symlink.display()
+                                        ));
                                         ensure_path_entry(&home, &local_bin, &mut repairs);
                                     }
-                                    Err(e) => repairs.push(format!("Could not create CLI symlink: {}", e)),
+                                    Err(e) => {
+                                        repairs.push(format!("Could not create CLI symlink: {}", e))
+                                    }
                                 }
                             }
                         }
@@ -657,7 +680,8 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
                 if needs_symlink {
                     let _ = std::fs::remove_file(symlink_path);
                     match std::os::unix::fs::symlink(mcp, symlink_path) {
-                        Ok(()) => repairs.push("Created MCP symlink: /usr/local/bin/convx-mcp".to_string()),
+                        Ok(()) => repairs
+                            .push("Created MCP symlink: /usr/local/bin/convx-mcp".to_string()),
                         Err(_) => {
                             if let Ok(home) = std::env::var("HOME") {
                                 let local_bin = PathBuf::from(&home).join(".local").join("bin");
@@ -665,8 +689,13 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
                                 let local_symlink = local_bin.join("convx-mcp");
                                 let _ = std::fs::remove_file(&local_symlink);
                                 match std::os::unix::fs::symlink(mcp, &local_symlink) {
-                                    Ok(()) => repairs.push(format!("Created MCP symlink: {}", local_symlink.display())),
-                                    Err(e) => repairs.push(format!("Could not create MCP symlink: {}", e)),
+                                    Ok(()) => repairs.push(format!(
+                                        "Created MCP symlink: {}",
+                                        local_symlink.display()
+                                    )),
+                                    Err(e) => {
+                                        repairs.push(format!("Could not create MCP symlink: {}", e))
+                                    }
                                 }
                             }
                         }
@@ -697,8 +726,19 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
             // Install missing pip modules from bundled wheels
             let pip = venv_dir.join("bin").join("pip3");
             if pip.exists() {
-                let modules = ["pandas", "openpyxl", "weasyprint", "pdf2docx", "PyMuPDF==1.23.26", "mobi", "pyarrow", "numpy", "h5py"];
-                let missing_modules: Vec<&str> = modules.iter()
+                let modules = [
+                    "pandas",
+                    "openpyxl",
+                    "weasyprint",
+                    "pdf2docx",
+                    "PyMuPDF==1.23.26",
+                    "mobi",
+                    "pyarrow",
+                    "numpy",
+                    "h5py",
+                ];
+                let missing_modules: Vec<&str> = modules
+                    .iter()
                     .filter(|m| !DependencyChecker::python_has_module(m))
                     .copied()
                     .collect();
@@ -714,10 +754,16 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
                     cmd.args(&missing_modules);
                     match cmd.output() {
                         Ok(out) if out.status.success() => {
-                            repairs.push(format!("Installed missing modules: {}", missing_modules.join(", ")));
+                            repairs.push(format!(
+                                "Installed missing modules: {}",
+                                missing_modules.join(", ")
+                            ));
                         }
                         _ => {
-                            repairs.push(format!("Could not auto-install modules: {}", missing_modules.join(", ")));
+                            repairs.push(format!(
+                                "Could not auto-install modules: {}",
+                                missing_modules.join(", ")
+                            ));
                         }
                     }
                 }
@@ -749,14 +795,21 @@ fn ensure_path_entry(home: &str, dir: &Path, repairs: &mut Vec<String>) {
             return; // Already present
         }
     }
-    match std::fs::OpenOptions::new().create(true).append(true).open(&zshrc) {
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&zshrc)
+    {
         Ok(mut f) => {
             use std::io::Write;
             let _ = f.write_all(export_line.as_bytes());
             repairs.push(format!("Added {} to PATH in ~/.zshrc", dir_str));
         }
         Err(_) => {
-            repairs.push(format!("Add to your PATH: export PATH=\"{}:$PATH\"", dir_str));
+            repairs.push(format!(
+                "Add to your PATH: export PATH=\"{}:$PATH\"",
+                dir_str
+            ));
         }
     }
 }
@@ -1069,8 +1122,8 @@ pub struct JsMcpConfig {
 
 #[tauri::command]
 pub fn get_mcp_config() -> Result<JsMcpConfig, String> {
-    let exe = std::env::current_exe()
-        .map_err(|e| format!("Could not determine binary path: {}", e))?;
+    let exe =
+        std::env::current_exe().map_err(|e| format!("Could not determine binary path: {}", e))?;
     let binary_path = exe.to_string_lossy().to_string();
 
     let config_entry = serde_json::json!({
@@ -1094,8 +1147,8 @@ pub fn get_mcp_config() -> Result<JsMcpConfig, String> {
 
 #[tauri::command]
 pub fn auto_configure_mcp(target: String) -> Result<String, String> {
-    let exe = std::env::current_exe()
-        .map_err(|e| format!("Could not determine binary path: {}", e))?;
+    let exe =
+        std::env::current_exe().map_err(|e| format!("Could not determine binary path: {}", e))?;
     let binary_path = exe.to_string_lossy().to_string();
 
     let home = std::env::var("HOME")
@@ -1113,7 +1166,9 @@ pub fn auto_configure_mcp(target: String) -> Result<String, String> {
             {
                 std::env::var("APPDATA")
                     .map(|a| PathBuf::from(a).join("Claude/claude_desktop_config.json"))
-                    .unwrap_or_else(|_| home.join("AppData/Roaming/Claude/claude_desktop_config.json"))
+                    .unwrap_or_else(|_| {
+                        home.join("AppData/Roaming/Claude/claude_desktop_config.json")
+                    })
             }
             #[cfg(target_os = "linux")]
             {
@@ -1121,15 +1176,19 @@ pub fn auto_configure_mcp(target: String) -> Result<String, String> {
             }
         }
         "cursor" => home.join(".cursor/mcp.json"),
-        _ => return Err(format!("Unknown target: {}. Use 'claude-desktop' or 'cursor'.", target)),
+        _ => {
+            return Err(format!(
+                "Unknown target: {}. Use 'claude-desktop' or 'cursor'.",
+                target
+            ))
+        }
     };
 
     // Read existing config or start with empty object
     let mut config: serde_json::Value = if config_path.exists() {
         let contents = std::fs::read_to_string(&config_path)
             .map_err(|e| format!("Could not read config: {}", e))?;
-        serde_json::from_str(&contents)
-            .map_err(|e| format!("Could not parse config: {}", e))?
+        serde_json::from_str(&contents).map_err(|e| format!("Could not parse config: {}", e))?
     } else {
         serde_json::json!({})
     };
@@ -1199,19 +1258,46 @@ pub fn send_conversion_audit(
                 let mut y: i64 = 1970;
                 let mut remaining = days as i64;
                 loop {
-                    let year_days: i64 = if (y % 4 == 0 && y % 100 != 0) || y % 400 == 0 { 366 } else { 365 };
-                    if remaining < year_days { break; }
+                    let year_days: i64 = if (y % 4 == 0 && y % 100 != 0) || y % 400 == 0 {
+                        366
+                    } else {
+                        365
+                    };
+                    if remaining < year_days {
+                        break;
+                    }
                     remaining -= year_days;
                     y += 1;
                 }
                 let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
-                let month_days: [i64; 12] = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+                let month_days: [i64; 12] = [
+                    31,
+                    if leap { 29 } else { 28 },
+                    31,
+                    30,
+                    31,
+                    30,
+                    31,
+                    31,
+                    30,
+                    31,
+                    30,
+                    31,
+                ];
                 let mut mo = 0usize;
                 while mo < 12 && remaining >= month_days[mo] {
                     remaining -= month_days[mo];
                     mo += 1;
                 }
-                format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, mo + 1, remaining + 1, h, m, s)
+                format!(
+                    "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+                    y,
+                    mo + 1,
+                    remaining + 1,
+                    h,
+                    m,
+                    s
+                )
             },
         };
         license::enterprise::send_audit_event(&config, event);

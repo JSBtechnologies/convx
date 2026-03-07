@@ -1,11 +1,9 @@
-; convx Windows bootstrapper (Inno Setup)
-; Usage:
-;   iscc /DAppMsi="C:\path\to\convx_0.1.0_x64_en-US.msi" convx-bootstrapper.iss
+; ConvX Windows bootstrapper (Inno Setup)
 
-#define MyAppName "convx"
-#define MyAppPublisher "convx"
+#define MyAppName "ConvX"
+#define MyAppPublisher "JSB Technologies"
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "1.0.0"
 #endif
 #ifndef OutputDir
   #define OutputDir "."
@@ -22,7 +20,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\convx
 DisableProgramGroupPage=yes
 OutputDir={#OutputDir}
-OutputBaseFilename=convx-setup-bootstrapper-{#AppVersion}
+OutputBaseFilename=ConvX-Bootstrapper
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -34,6 +32,6 @@ Source: "{#AppMsi}"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "..\bootstrap-windows.ps1"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{tmp}\bootstrap-windows.ps1"""; StatusMsg: "Installing prerequisites..."; Flags: runhidden waituntilterminated
-Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\{#ExtractFileName(AppMsi)}"" /passive /norestart"; StatusMsg: "Installing convx..."; Flags: waituntilterminated
-Filename: "{autopf}\convx\convx.exe"; Description: "Launch convx"; Flags: nowait postinstall skipifsilent
+Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{tmp}\bootstrap-windows.ps1"""; StatusMsg: "Preparing environment..."; Flags: runhidden waituntilterminated
+Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\{#ExtractFileName(AppMsi)}"" /passive /norestart"; StatusMsg: "Installing ConvX..."; Flags: waituntilterminated
+Filename: "{autopf}\convx\convx.exe"; Description: "Launch ConvX"; Flags: nowait postinstall skipifsilent

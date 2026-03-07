@@ -149,7 +149,7 @@ impl DependencyChecker {
         Self::python3_executable()
     }
 
-    /// Returns the venv pip binary path.
+    /// Returns the venv pip binary path, falling back to bundled Python's pip.
     pub fn convx_pip() -> Option<String> {
         if let Some(venv) = Self::convx_venv_dir() {
             let bin = if cfg!(windows) {
@@ -159,6 +159,17 @@ impl DependencyChecker {
             };
             if bin.exists() {
                 return Some(bin.to_string_lossy().to_string());
+            }
+        }
+        // Fall back to bundled Python's pip (e.g. Windows embeddable distribution)
+        if let Some(res) = Self::bundled_resources_dir() {
+            let bundled_pip = if cfg!(windows) {
+                res.join("python").join("Scripts").join("pip.exe")
+            } else {
+                res.join("python").join("bin").join("pip3")
+            };
+            if bundled_pip.exists() {
+                return Some(bundled_pip.to_string_lossy().to_string());
             }
         }
         None
@@ -343,6 +354,14 @@ impl DependencyChecker {
             if lib.is_dir() {
                 paths.push(lib.to_string_lossy().to_string());
             }
+            // On Windows, DLLs also live in bin/ alongside executables
+            #[cfg(target_os = "windows")]
+            {
+                let bin = res.join("bin");
+                if bin.is_dir() {
+                    paths.push(bin.to_string_lossy().to_string());
+                }
+            }
         }
 
         // Platform-specific system lib paths
@@ -405,7 +424,7 @@ impl DependencyChecker {
         }
     }
 
-    /// Returns the weasyprint CLI binary path (venv first, then system).
+    /// Returns the weasyprint CLI binary path (venv first, bundled Python, then system).
     pub fn weasyprint_executable() -> Option<String> {
         if let Some(venv) = Self::convx_venv_dir() {
             let bin = if cfg!(windows) {
@@ -415,6 +434,17 @@ impl DependencyChecker {
             };
             if bin.exists() {
                 return Some(bin.to_string_lossy().to_string());
+            }
+        }
+        // Check bundled Python's scripts (Windows embeddable distribution)
+        if let Some(res) = Self::bundled_resources_dir() {
+            let bundled = if cfg!(windows) {
+                res.join("python").join("Scripts").join("weasyprint.exe")
+            } else {
+                res.join("python").join("bin").join("weasyprint")
+            };
+            if bundled.exists() {
+                return Some(bundled.to_string_lossy().to_string());
             }
         }
         Self::resolve_binary("weasyprint", "--version")

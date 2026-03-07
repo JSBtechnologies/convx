@@ -1,7 +1,17 @@
 /// Known CLI subcommands from convx::cli (clap Commands enum).
 const CLI_SUBCOMMANDS: &[&str] = &[
-    "convert", "presets", "formats", "check", "info", "watch",
-    "mcp", "activate", "deactivate", "license", "fingerprint", "version",
+    "convert",
+    "presets",
+    "formats",
+    "check",
+    "info",
+    "watch",
+    "mcp",
+    "activate",
+    "deactivate",
+    "license",
+    "fingerprint",
+    "version",
 ];
 
 fn main() {
@@ -17,9 +27,8 @@ fn main() {
 
     // --- MCP mode ---
     // Triggered by --mcp flag or exe name convx-mcp
-    let is_mcp = args.iter().any(|a| a == "--mcp")
-        || exe_name == "convx-mcp"
-        || exe_name == "convx-mcp.exe";
+    let is_mcp =
+        args.iter().any(|a| a == "--mcp") || exe_name == "convx-mcp" || exe_name == "convx-mcp.exe";
 
     if is_mcp {
         if let Err(e) = convx_app_lib::run_mcp() {
@@ -36,9 +45,10 @@ fn main() {
     let has_cli_subcommand = first_positional
         .map(|s| CLI_SUBCOMMANDS.contains(&s.as_str()))
         .unwrap_or(false);
-    let has_help_or_version = args.iter().skip(1).any(|a| {
-        a == "--help" || a == "-h" || a == "--version" || a == "-V"
-    });
+    let has_help_or_version = args
+        .iter()
+        .skip(1)
+        .any(|a| a == "--help" || a == "-h" || a == "--version" || a == "-V");
 
     let is_cli = exe_name == "convx-cli"
         || exe_name == "convx-cli.exe"

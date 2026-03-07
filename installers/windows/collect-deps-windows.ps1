@@ -119,8 +119,9 @@ if (-not $SkipVips) {
   $VipsBinDir = Get-ChildItem -Path $VipsExtract -Recurse -Directory -Filter "bin" | Select-Object -First 1
   if ($VipsBinDir) {
     Copy-Item (Join-Path $VipsBinDir.FullName "vips.exe") $BinDir -Force
-    # Copy all DLLs to lib/
+    # Copy DLLs to bin/ (alongside exe for immediate discovery) and lib/ (for Python native lib path)
     Get-ChildItem -Path $VipsBinDir.FullName -Filter "*.dll" | ForEach-Object {
+      Copy-Item $_.FullName $BinDir -Force
       Copy-Item $_.FullName $LibDir -Force
     }
     Write-Host "    Copied vips.exe + DLLs"
@@ -169,8 +170,11 @@ if (-not $SkipPoppler) {
   $PopplerBinDir = Get-ChildItem -Path $PopplerExtract -Recurse -Directory -Filter "bin" | Select-Object -First 1
   if ($PopplerBinDir) {
     Copy-Item (Join-Path $PopplerBinDir.FullName "pdftoppm.exe") $BinDir -Force
-    # Copy poppler DLLs
+    # Copy poppler DLLs to bin/ (alongside exe) and lib/ (for Python native lib path)
     Get-ChildItem -Path (Join-Path $PopplerBinDir.FullName "..") -Recurse -Filter "*.dll" | ForEach-Object {
+      if (-not (Test-Path (Join-Path $BinDir $_.Name))) {
+        Copy-Item $_.FullName $BinDir -Force
+      }
       if (-not (Test-Path (Join-Path $LibDir $_.Name))) {
         Copy-Item $_.FullName $LibDir -Force
       }
@@ -266,7 +270,7 @@ if (-not $SkipWheels) {
   $WheelsDir = Join-Path $DepsDir "wheels"
   New-Item -ItemType Directory -Path $WheelsDir -Force | Out-Null
 
-  $Modules = @("pandas", "openpyxl", "weasyprint", "pdf2docx", "mobi", "pyarrow", "numpy", "h5py")
+  $Modules = @("pandas", "openpyxl", "weasyprint", "pdf2docx", "PyMuPDF==1.23.26", "mobi", "pyarrow", "numpy", "h5py")
 
   $PyExe = Join-Path $DepsDir "python\python.exe"
   $PipExe = Join-Path $DepsDir "python\Scripts\pip.exe"

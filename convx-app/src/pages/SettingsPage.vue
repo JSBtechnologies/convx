@@ -94,7 +94,7 @@
 
         <div class="settings-row">
           <div class="settings-row__label">Version</div>
-          <span class="mono text-glass" style="font-size: 13px">0.1.0</span>
+          <span class="mono text-glass" style="font-size: 13px">1.0.0</span>
         </div>
       </div>
 

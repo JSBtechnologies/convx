@@ -136,7 +136,7 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          PKG_PATH="installers/macos/dist/convx-installer-${{ needs.metadata.outputs.app_version }}.pkg"
+          PKG_PATH="installers/macos/dist/ConvX-Setup.pkg"
           echo "Submitting for notarization..."
           xcrun notarytool submit "$PKG_PATH" \
             --apple-id "$APPLE_ID" \
@@ -157,7 +157,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: convx-macos-unified-pkg-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}
-          path: installers/macos/dist/convx-installer-${{ needs.metadata.outputs.app_version }}.pkg
+          path: installers/macos/dist/ConvX-Setup.pkg
 
   windows-bootstrapper:
     runs-on: windows-latest
@@ -186,7 +186,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: convx-windows-bootstrapper-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}
-          path: installers/windows/convx-setup-bootstrapper-${{ needs.metadata.outputs.app_version }}.exe
+          path: installers/windows/ConvX-Bootstrapper.exe
 
   build-windows-bundled:
     runs-on: windows-latest
@@ -210,7 +210,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download deps-v1 -p "deps-windows.tar.gz" -D installers/windows/ 2>/dev/null
+          gh release download deps-v2 -p "deps-windows.tar.gz" -D installers/windows/ 2>/dev/null
           cd installers/windows && tar -xzf deps-windows.tar.gz && rm deps-windows.tar.gz
           echo "hit=true" >> "$GITHUB_OUTPUT"
 
@@ -228,8 +228,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd installers/windows && tar -czf deps-windows.tar.gz deps/
-          gh release create deps-v1 --title "Bundled Dependencies" --notes "Pre-collected dependency archives for CI" 2>/dev/null || true
-          gh release upload deps-v1 deps-windows.tar.gz --clobber
+          gh release create deps-v2 --title "Bundled Dependencies" --notes "Pre-collected dependency archives for CI" 2>/dev/null || true
+          gh release upload deps-v2 deps-windows.tar.gz --clobber
 
       - name: Install Inno Setup
         run: choco install innosetup -y
@@ -243,7 +243,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: convx-windows-bundled-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}
-          path: installers/windows/ConvX-Setup-${{ needs.metadata.outputs.app_version }}.exe
+          path: installers/windows/ConvX-Setup.exe
 
   build-linux-bundled:
     runs-on: ubuntu-latest
@@ -271,7 +271,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download deps-v1 -p "deps-linux.tar.gz" -D installers/linux/ 2>/dev/null
+          gh release download deps-v2 -p "deps-linux.tar.gz" -D installers/linux/ 2>/dev/null
           cd installers/linux && tar -xzf deps-linux.tar.gz && rm deps-linux.tar.gz
           echo "hit=true" >> "$GITHUB_OUTPUT"
 
@@ -287,15 +287,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd installers/linux && tar -czf deps-linux.tar.gz deps/
-          gh release create deps-v1 --title "Bundled Dependencies" --notes "Pre-collected dependency archives for CI" 2>/dev/null || true
-          gh release upload deps-v1 deps-linux.tar.gz --clobber
+          gh release create deps-v2 --title "Bundled Dependencies" --notes "Pre-collected dependency archives for CI" 2>/dev/null || true
+          gh release upload deps-v2 deps-linux.tar.gz --clobber
 
       - name: Build bundled AppImage
         run: |
           APPIMAGE=$(find target/release/bundle -name "*.AppImage" | head -1)
           if [ -n "$APPIMAGE" ]; then
             bash installers/linux/build-bundled-appimage.sh "$APPIMAGE" installers/linux/deps \
-              "installers/linux/ConvX-${{ needs.metadata.outputs.app_version }}.AppImage"
+              "installers/linux/ConvX-Setup.AppImage"
           else
             echo "Warning: No AppImage found in bundle artifacts"
           fi
@@ -305,7 +305,7 @@ jobs:
           DEB=$(find target/release/bundle -name "*.deb" | head -1)
           if [ -n "$DEB" ]; then
             bash installers/linux/build-bundled-deb.sh "$DEB" installers/linux/deps \
-              "installers/linux/convx-${{ needs.metadata.outputs.app_version }}.deb"
+              "installers/linux/ConvX-Setup.deb"
           else
             echo "Warning: No .deb found in bundle artifacts"
           fi
@@ -314,12 +314,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: convx-linux-bundled-appimage-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}
-          path: installers/linux/ConvX-${{ needs.metadata.outputs.app_version }}.AppImage
+          path: installers/linux/ConvX-Setup.AppImage
           if-no-files-found: warn
 
       - name: Upload bundled .deb artifact
         uses: actions/upload-artifact@v4
         with:
           name: convx-linux-bundled-deb-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}
-          path: installers/linux/convx-${{ needs.metadata.outputs.app_version }}.deb
+          path: installers/linux/ConvX-Setup.deb
           if-no-files-found: warn

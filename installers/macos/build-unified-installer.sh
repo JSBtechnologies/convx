@@ -177,7 +177,7 @@ if [[ -n "$MACOS_APP_SIGN_IDENTITY" ]]; then
   echo "  Signed convx.app"
 fi
 
-PKG_NAME="convx-installer-${APP_VERSION}.pkg"
+PKG_NAME="ConvX-Setup.pkg"
 OUT_PATH="$DIST_DIR/$PKG_NAME"
 
 # Generate a component plist and disable bundle relocation.

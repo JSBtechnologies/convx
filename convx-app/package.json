@@ -1,6 +1,6 @@
 {
   "name": "convx-app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Local-first file conversion",
   "productName": "convx",
   "private": true,
