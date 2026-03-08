@@ -270,7 +270,7 @@ if (-not $SkipWheels) {
   $WheelsDir = Join-Path $DepsDir "wheels"
   New-Item -ItemType Directory -Path $WheelsDir -Force | Out-Null
 
-  $Modules = @("pandas", "openpyxl", "weasyprint", "pdf2docx", "PyMuPDF==1.23.26", "mobi", "pyarrow", "numpy", "h5py")
+  $Modules = @("pandas", "openpyxl", "weasyprint", "pdf2docx", "PyMuPDF", "mobi", "pyarrow", "numpy", "h5py")
 
   $PyExe = Join-Path $DepsDir "python\python.exe"
   $PipExe = Join-Path $DepsDir "python\Scripts\pip.exe"

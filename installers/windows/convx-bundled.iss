@@ -46,7 +46,7 @@ Source: "{#DepsDir}\wheels\*"; DestDir: "{app}\deps\wheels"; Flags: ignoreversio
 
 [Run]
 Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\{#ExtractFileName(AppMsi)}"" INSTALLDIR=""{app}"" /passive /norestart"; StatusMsg: "Installing ConvX..."; Flags: waituntilterminated
-Filename: "{app}\deps\python\Scripts\pip.exe"; Parameters: "install --no-index --find-links ""{app}\deps\wheels"" pandas openpyxl weasyprint pdf2docx ""PyMuPDF==1.23.26"" mobi pyarrow numpy h5py"; StatusMsg: "Configuring components..."; Flags: runhidden waituntilterminated runasoriginaluser
+Filename: "{app}\deps\python\Scripts\pip.exe"; Parameters: "install --no-index --find-links ""{app}\deps\wheels"" pandas openpyxl weasyprint pdf2docx PyMuPDF mobi pyarrow numpy h5py"; StatusMsg: "Configuring components..."; Flags: runhidden waituntilterminated runasoriginaluser
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Registry]
