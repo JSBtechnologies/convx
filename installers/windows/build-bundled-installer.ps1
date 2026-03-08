@@ -74,7 +74,20 @@ if (-not [string]::IsNullOrWhiteSpace($OutputDir)) {
 # Find Inno Setup compiler
 $iscc = Get-Command iscc -ErrorAction SilentlyContinue
 if (-not $iscc) {
-  Write-Error "Inno Setup compiler (iscc) not found in PATH. Install Inno Setup first."
+  # Check default install locations
+  $defaultPaths = @(
+    "C:\Program Files (x86)\Inno Setup 6\iscc.exe",
+    "C:\Program Files\Inno Setup 6\iscc.exe"
+  )
+  foreach ($p in $defaultPaths) {
+    if (Test-Path $p) {
+      $iscc = $p
+      break
+    }
+  }
+  if (-not $iscc) {
+    Write-Error "Inno Setup compiler (iscc) not found in PATH or default locations. Install Inno Setup first."
+  }
 }
 
 Write-Host "Building bundled ConvX installer..."
@@ -96,7 +109,8 @@ try {
 
   $isccArgs += "$issPath"
 
-  & iscc @isccArgs
+  $isccPath = if ($iscc -is [string]) { $iscc } else { "iscc" }
+  & $isccPath @isccArgs
   if ($LASTEXITCODE -ne 0) {
     Write-Error "Inno Setup compilation failed with exit code $LASTEXITCODE"
   }
