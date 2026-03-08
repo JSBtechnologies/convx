@@ -237,7 +237,7 @@ jobs:
       - name: Build bundled installer
         shell: pwsh
         run: |
-          .\installers\windows\build-bundled-installer.ps1 -AppVersion "${{ needs.metadata.outputs.app_version }}"
+          .\installers\windows\build-bundled-installer.ps1 -TauriDir "$env:GITHUB_WORKSPACE\target\release" -AppVersion "${{ needs.metadata.outputs.app_version }}"
 
       - name: Upload bundled installer artifact
         uses: actions/upload-artifact@v4
