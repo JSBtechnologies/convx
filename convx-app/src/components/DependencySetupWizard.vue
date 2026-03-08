@@ -210,16 +210,20 @@ const installCommand = computed(() => {
   if (os.value === 'macos') {
     const parts: string[] = [];
     const brewDeps: string[] = [];
+    const caskDeps: string[] = [];
     const pipDeps: string[] = [];
 
     for (const cat of failed) {
       if (cat === 'media') brewDeps.push('ffmpeg', 'vips');
-      else if (cat === 'document') brewDeps.push('pandoc', 'poppler');
-      else if (cat === 'data') pipDeps.push('pandas', 'openpyxl', 'pyarrow', 'numpy', 'h5py');
+      else if (cat === 'document') {
+        brewDeps.push('pandoc', 'poppler');
+        caskDeps.push('libreoffice');
+      } else if (cat === 'data') pipDeps.push('pandas', 'openpyxl', 'pyarrow', 'numpy', 'h5py');
       else if (cat === 'formats') pipDeps.push('weasyprint', 'pdf2docx', 'mobi');
     }
 
     if (brewDeps.length) parts.push(`brew install ${brewDeps.join(' ')}`);
+    if (caskDeps.length) parts.push(`brew install --cask ${caskDeps.join(' ')}`);
     if (pipDeps.length)
       parts.push(`~/.convx/venv/bin/pip install ${pipDeps.join(' ')}`);
     return parts.join(' && ') || 'Try reinstalling convx from the .pkg installer';
@@ -232,7 +236,7 @@ const installCommand = computed(() => {
 
     for (const cat of failed) {
       if (cat === 'media') aptDeps.push('ffmpeg', 'libvips-tools');
-      else if (cat === 'document') aptDeps.push('pandoc', 'poppler-utils');
+      else if (cat === 'document') aptDeps.push('pandoc', 'poppler-utils', 'libreoffice-core');
       else if (cat === 'data') pipDeps.push('pandas', 'openpyxl', 'pyarrow', 'numpy', 'h5py');
       else if (cat === 'formats') pipDeps.push('weasyprint', 'pdf2docx', 'mobi');
     }

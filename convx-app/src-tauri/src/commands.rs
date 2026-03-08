@@ -777,7 +777,7 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
                     "openpyxl",
                     "weasyprint",
                     "pdf2docx",
-                    "PyMuPDF==1.23.26",
+                    "PyMuPDF",
                     "mobi",
                     "pyarrow",
                     "numpy",
