@@ -817,6 +817,48 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
         }
     }
 
+    #[cfg(target_os = "windows")]
+    {
+        // Install missing pip modules using bundled Python directly (no venv)
+        let bundled_pip = DependencyChecker::bundled_pip_path();
+        let pip_path = bundled_pip.or_else(|| DependencyChecker::convx_pip());
+
+        if let Some(pip) = pip_path {
+            let modules = [
+                "pandas", "openpyxl", "weasyprint", "pdf2docx", "PyMuPDF",
+                "mobi", "pyarrow", "numpy", "h5py",
+            ];
+            let missing_modules: Vec<&str> = modules
+                .iter()
+                .filter(|m| !DependencyChecker::python_has_module(m))
+                .copied()
+                .collect();
+
+            if !missing_modules.is_empty() {
+                let mut cmd = Command::new(&pip);
+                cmd.arg("install");
+                if let Some(wheels) = DependencyChecker::bundled_wheels_dir() {
+                    cmd.args(["--find-links", &wheels.to_string_lossy()]);
+                }
+                cmd.args(&missing_modules);
+                match cmd.output() {
+                    Ok(out) if out.status.success() => {
+                        repairs.push(format!(
+                            "Installed missing modules: {}",
+                            missing_modules.join(", ")
+                        ));
+                    }
+                    _ => {
+                        repairs.push(format!(
+                            "Could not auto-install modules: {}",
+                            missing_modules.join(", ")
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
     JsPostInstallStatus {
         ok: repairs.is_empty() || repairs.iter().all(|r: &String| !r.starts_with("Could not")),
         repairs,
