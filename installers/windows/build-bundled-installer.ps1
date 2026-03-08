@@ -2,8 +2,8 @@
 .SYNOPSIS
 Builds the convx Windows bundled installer EXE (Inno Setup + deps).
 
-.PARAMETER MsiPath
-Optional explicit path to the Tauri-generated MSI.
+.PARAMETER TauriDir
+Optional explicit path to directory containing convx.exe from Tauri build.
 
 .PARAMETER DepsDir
 Optional path to deps directory (defaults to .\deps).
@@ -16,21 +16,13 @@ Optional output directory for generated EXE.
 #>
 [CmdletBinding()]
 param(
-  [string]$MsiPath = "",
+  [string]$TauriDir = "",
   [string]$DepsDir = "",
   [string]$AppVersion = "",
   [string]$OutputDir = ""
 )
 
 $ErrorActionPreference = "Stop"
-
-function Find-Msi {
-  param([string]$Root)
-  $candidates = Get-ChildItem -Path $Root -Recurse -Filter *.msi -ErrorAction SilentlyContinue |
-    Sort-Object LastWriteTime -Descending
-  if ($candidates.Count -eq 0) { return $null }
-  return $candidates[0].FullName
-}
 
 $repoRoot = Resolve-Path "$PSScriptRoot/../.."
 $issPath = Resolve-Path "$PSScriptRoot/convx-bundled.iss"
@@ -49,12 +41,18 @@ if ([string]::IsNullOrWhiteSpace($AppVersion)) {
   }
 }
 
-# Resolve MSI path
-if ([string]::IsNullOrWhiteSpace($MsiPath)) {
-  $MsiPath = Find-Msi "$repoRoot/target/release/bundle"
+# Resolve Tauri output directory
+if ([string]::IsNullOrWhiteSpace($TauriDir)) {
+  # Look for convx.exe in the Tauri release build output
+  $TauriBuildDir = "$repoRoot/target/release"
+  $TauriExe = Get-ChildItem -Path $TauriBuildDir -Filter "convx.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $TauriExe) {
+    Write-Error "convx.exe not found in $TauriBuildDir. Build first: cd convx-app && cargo tauri build"
+  }
+  $TauriDir = $TauriBuildDir
 }
-if (-not $MsiPath -or -not (Test-Path $MsiPath)) {
-  Write-Error "No MSI found. Build one first: cd convx-app && cargo tauri build"
+if (-not (Test-Path (Join-Path $TauriDir "convx.exe"))) {
+  Write-Error "convx.exe not found in TauriDir: $TauriDir"
 }
 
 # Resolve deps directory
@@ -76,18 +74,31 @@ if (-not [string]::IsNullOrWhiteSpace($OutputDir)) {
 # Find Inno Setup compiler
 $iscc = Get-Command iscc -ErrorAction SilentlyContinue
 if (-not $iscc) {
-  Write-Error "Inno Setup compiler (iscc) not found in PATH. Install Inno Setup first."
+  # Check default install locations
+  $defaultPaths = @(
+    "C:\Program Files (x86)\Inno Setup 6\iscc.exe",
+    "C:\Program Files\Inno Setup 6\iscc.exe"
+  )
+  foreach ($p in $defaultPaths) {
+    if (Test-Path $p) {
+      $iscc = $p
+      break
+    }
+  }
+  if (-not $iscc) {
+    Write-Error "Inno Setup compiler (iscc) not found in PATH or default locations. Install Inno Setup first."
+  }
 }
 
 Write-Host "Building bundled ConvX installer..."
-Write-Host "  MSI: $MsiPath"
+Write-Host "  Tauri dir: $TauriDir"
 Write-Host "  Deps: $DepsDir"
 Write-Host "  Version: $AppVersion"
 
 Push-Location $PSScriptRoot
 try {
   $isccArgs = @(
-    "/DAppMsi=$MsiPath",
+    "/DTauriDir=$TauriDir",
     "/DDepsDir=$DepsDir",
     "/DAppVersion=$AppVersion"
   )
@@ -98,7 +109,8 @@ try {
 
   $isccArgs += "$issPath"
 
-  & iscc @isccArgs
+  $isccPath = if ($iscc -is [string]) { $iscc } else { "iscc" }
+  & $isccPath @isccArgs
   if ($LASTEXITCODE -ne 0) {
     Write-Error "Inno Setup compilation failed with exit code $LASTEXITCODE"
   }

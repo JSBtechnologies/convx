@@ -162,17 +162,7 @@ impl DependencyChecker {
             }
         }
         // Fall back to bundled Python's pip (e.g. Windows embeddable distribution)
-        if let Some(res) = Self::bundled_resources_dir() {
-            let bundled_pip = if cfg!(windows) {
-                res.join("python").join("Scripts").join("pip.exe")
-            } else {
-                res.join("python").join("bin").join("pip3")
-            };
-            if bundled_pip.exists() {
-                return Some(bundled_pip.to_string_lossy().to_string());
-            }
-        }
-        None
+        Self::bundled_pip_path()
     }
 
     /// Returns the bundled wheels directory if it exists inside the .app bundle.
@@ -225,13 +215,35 @@ impl DependencyChecker {
         Ok(venv_dir)
     }
 
-    /// Installs a pip module into the convx venv. Creates venv if needed.
-    /// Uses bundled wheels from the .app bundle when available for offline install.
-    pub fn install_pip_module(module: &str) -> Result<(), String> {
-        Self::ensure_venv()?;
+    /// Returns bundled pip path if it exists (e.g. Windows bundled installer).
+    /// This avoids needing to create a venv with embeddable Python.
+    pub fn bundled_pip_path() -> Option<String> {
+        if let Some(res) = Self::bundled_resources_dir() {
+            let bundled_pip = if cfg!(windows) {
+                res.join("python").join("Scripts").join("pip.exe")
+            } else {
+                res.join("python").join("bin").join("pip3")
+            };
+            if bundled_pip.exists() {
+                return Some(bundled_pip.to_string_lossy().to_string());
+            }
+        }
+        None
+    }
 
-        let pip =
-            Self::convx_pip().ok_or_else(|| "pip not found in venv after creation".to_string())?;
+    /// Installs a pip module into the convx venv or via bundled Python.
+    /// Prefers bundled pip (Windows bundled installer) over venv to avoid
+    /// issues with embeddable Python lacking the venv module.
+    pub fn install_pip_module(module: &str) -> Result<(), String> {
+        // Try bundled pip first (works on Windows embeddable Python)
+        let pip = if let Some(bundled_pip) = Self::bundled_pip_path() {
+            bundled_pip
+        } else {
+            // Fall back to venv approach (macOS/Linux, bootstrapper installs)
+            Self::ensure_venv()?;
+            Self::convx_pip()
+                .ok_or_else(|| "pip not found in venv after creation".to_string())?
+        };
 
         let mut args = vec!["install".to_string()];
 

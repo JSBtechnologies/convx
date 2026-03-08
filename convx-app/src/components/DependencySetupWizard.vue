@@ -163,31 +163,21 @@ interface DepState {
 }
 
 const FRIENDLY_NAMES: Record<string, string> = {
-  ffmpeg: 'FFmpeg',
-  vips: 'libvips',
-  libreoffice: 'LibreOffice',
-  pandoc: 'Pandoc',
-  poppler: 'Poppler',
-  'python@3': 'Python 3',
-  'pip:mobi': 'mobi (Python)',
-  'pip:pandas': 'pandas (Python)',
-  'pip:openpyxl': 'openpyxl (Python)',
-  'pip:weasyprint': 'weasyprint (Python)',
-  'pip:pdf2docx': 'pdf2docx (Python)',
-  'pip:pyarrow': 'pyarrow (Python)',
-  'pip:numpy': 'numpy (Python)',
-  'pip:h5py': 'h5py (Python)',
+  media: 'Tuning the pixel engine',
+  document: 'Sharpening the document toolkit',
+  data: 'Crunching the data gears',
+  formats: 'Wiring up the format translators',
 };
 
 const LOADING_MESSAGES = [
-  'Verifying bundled dependencies...',
-  'Checking conversion toolkit...',
-  'Your files will always stay on your machine.',
-  'Setting up Python environment...',
-  'Almost there...',
-  'Verifying codecs and converters...',
-  'No cloud. No uploads. Just fast conversions.',
-  'Finalizing setup...',
+  'Warming up the conversion engine...',
+  'Teaching your computer new tricks...',
+  'Calibrating the format wizardry...',
+  'Your files never leave this machine.',
+  'Almost ready to transform things...',
+  'No cloud. No uploads. Just speed.',
+  'Unpacking the good stuff...',
+  'Locking in the magic...',
 ];
 
 const stage = ref<Stage>('installing');
@@ -215,23 +205,50 @@ const os = computed(() => {
 });
 
 const installCommand = computed(() => {
-  const failed = depStates.filter(d => d.status === 'failed').map(d => d.name);
-  const brewPkgs = failed.filter(n => !n.startsWith('pip:'));
-  const pipModules = failed.filter(n => n.startsWith('pip:')).map(n => n.slice(4));
+  const failed = depStates.filter((d) => d.status === 'failed').map((d) => d.name);
 
   if (os.value === 'macos') {
-    const parts = [];
-    if (brewPkgs.length) parts.push(`brew install ${brewPkgs.join(' ')}`);
-    if (pipModules.length) parts.push(`~/.convx/venv/bin/pip install ${pipModules.join(' ')}`);
+    const parts: string[] = [];
+    const brewDeps: string[] = [];
+    const caskDeps: string[] = [];
+    const pipDeps: string[] = [];
+
+    for (const cat of failed) {
+      if (cat === 'media') brewDeps.push('ffmpeg', 'vips');
+      else if (cat === 'document') {
+        brewDeps.push('pandoc', 'poppler');
+        caskDeps.push('libreoffice');
+      } else if (cat === 'data') pipDeps.push('pandas', 'openpyxl', 'pyarrow', 'numpy', 'h5py');
+      else if (cat === 'formats') pipDeps.push('weasyprint', 'pdf2docx', 'mobi');
+    }
+
+    if (brewDeps.length) parts.push(`brew install ${brewDeps.join(' ')}`);
+    if (caskDeps.length) parts.push(`brew install --cask ${caskDeps.join(' ')}`);
+    if (pipDeps.length)
+      parts.push(`~/.convx/venv/bin/pip install ${pipDeps.join(' ')}`);
     return parts.join(' && ') || 'Try reinstalling convx from the .pkg installer';
   }
+
   if (os.value === 'linux') {
-    const parts = [];
-    if (brewPkgs.length) parts.push(`sudo apt-get install -y ${brewPkgs.join(' ')}`);
-    if (pipModules.length) parts.push(`~/.convx/venv/bin/pip install ${pipModules.join(' ')}`);
+    const parts: string[] = [];
+    const aptDeps: string[] = [];
+    const pipDeps: string[] = [];
+
+    for (const cat of failed) {
+      if (cat === 'media') aptDeps.push('ffmpeg', 'libvips-tools');
+      else if (cat === 'document') aptDeps.push('pandoc', 'poppler-utils', 'libreoffice-core');
+      else if (cat === 'data') pipDeps.push('pandas', 'openpyxl', 'pyarrow', 'numpy', 'h5py');
+      else if (cat === 'formats') pipDeps.push('weasyprint', 'pdf2docx', 'mobi');
+    }
+
+    if (aptDeps.length) parts.push(`sudo apt-get install -y ${aptDeps.join(' ')}`);
+    if (pipDeps.length)
+      parts.push(`~/.convx/venv/bin/pip install ${pipDeps.join(' ')}`);
     return parts.join(' && ') || 'See https://convx.dev/docs for your platform';
   }
-  return 'See https://convx.dev/docs for your platform';
+
+  // Windows: bundled installer should handle everything
+  return 'Try reinstalling ConvX. See https://convx.dev/docs for help.';
 });
 
 function startMessageCycler() {
