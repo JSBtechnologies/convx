@@ -329,60 +329,60 @@ pub fn check_dependencies() -> JsDependencyStatus {
     }
 }
 
-/// Returns list of missing dependency names that need installing.
+/// Maps a category name to the individual dependencies it contains.
+fn category_deps(category: &str) -> Vec<&'static str> {
+    match category {
+        "media" => vec!["ffmpeg", "vips"],
+        "document" => vec!["libreoffice", "pandoc", "poppler"],
+        "data" => vec!["pip:pandas", "pip:openpyxl", "pip:pyarrow", "pip:numpy", "pip:h5py"],
+        "formats" => vec!["pip:weasyprint", "pip:pdf2docx", "pip:mobi"],
+        _ => vec![],
+    }
+}
+
+/// Returns list of missing dependency category names that need installing.
 #[tauri::command]
 pub fn get_missing_dependencies() -> Vec<String> {
     let mut missing = Vec::new();
-    if DependencyChecker::check_ffmpeg().is_err() {
-        missing.push("ffmpeg".to_string());
+
+    // Media: ffmpeg + vips
+    if DependencyChecker::check_ffmpeg().is_err() || DependencyChecker::check_vips().is_err() {
+        missing.push("media".to_string());
     }
-    if DependencyChecker::check_vips().is_err() {
-        missing.push("vips".to_string());
+
+    // Document: libreoffice + pandoc + poppler
+    if DependencyChecker::libreoffice_executable().is_none()
+        || DependencyChecker::pandoc_executable().is_none()
+        || DependencyChecker::pdftoppm_executable().is_none()
+    {
+        missing.push("document".to_string());
     }
-    if DependencyChecker::libreoffice_executable().is_none() {
-        missing.push("libreoffice".to_string());
+
+    // Data: pandas, openpyxl, pyarrow, numpy, h5py
+    if DependencyChecker::python3_executable().is_none()
+        || !DependencyChecker::python_has_module("pandas")
+        || !DependencyChecker::python_has_module("openpyxl")
+        || !DependencyChecker::python_has_module("pyarrow")
+        || !DependencyChecker::python_has_module("numpy")
+        || !DependencyChecker::python_has_module("h5py")
+    {
+        missing.push("data".to_string());
     }
-    if DependencyChecker::pandoc_executable().is_none() {
-        missing.push("pandoc".to_string());
+
+    // Formats: weasyprint, pdf2docx, mobi
+    if DependencyChecker::python3_executable().is_none()
+        || !DependencyChecker::python_has_module("weasyprint")
+        || !DependencyChecker::python_has_module("pdf2docx")
+        || !DependencyChecker::python_has_module("mobi")
+    {
+        missing.push("formats".to_string());
     }
-    if DependencyChecker::pdftoppm_executable().is_none() {
-        missing.push("poppler".to_string());
-    }
-    if DependencyChecker::python3_executable().is_none() {
-        missing.push("python@3".to_string());
-    }
-    if DependencyChecker::python3_executable().is_some() {
-        if !DependencyChecker::python_has_module("pandas") {
-            missing.push("pip:pandas".to_string());
-        }
-        if !DependencyChecker::python_has_module("openpyxl") {
-            missing.push("pip:openpyxl".to_string());
-        }
-        if !DependencyChecker::python_has_module("weasyprint") {
-            missing.push("pip:weasyprint".to_string());
-        }
-        if !DependencyChecker::python_has_module("pdf2docx") {
-            missing.push("pip:pdf2docx".to_string());
-        }
-        if !DependencyChecker::python_has_module("mobi") {
-            missing.push("pip:mobi".to_string());
-        }
-        if !DependencyChecker::python_has_module("pyarrow") {
-            missing.push("pip:pyarrow".to_string());
-        }
-        if !DependencyChecker::python_has_module("numpy") {
-            missing.push("pip:numpy".to_string());
-        }
-        if !DependencyChecker::python_has_module("h5py") {
-            missing.push("pip:h5py".to_string());
-        }
-    }
+
     missing
 }
 
-/// Installs a single dependency by name. Returns ok/message.
-#[tauri::command]
-pub fn install_single_dependency(name: String) -> JsDependencyStatus {
+/// Installs a single individual dependency by name (e.g. "ffmpeg", "pip:pandas").
+fn install_one_dep(name: &str) -> JsDependencyStatus {
     #[cfg(target_os = "macos")]
     {
         if let Some(module) = name.strip_prefix("pip:") {
@@ -418,7 +418,7 @@ pub fn install_single_dependency(name: String) -> JsDependencyStatus {
                     message: format!("Invalid package name: {}", name),
                 };
             }
-            match Command::new(brew).args(["install", &name]).output() {
+            match Command::new(brew).args(["install", name]).output() {
                 Ok(out) if out.status.success() => JsDependencyStatus {
                     ok: true,
                     message: format!("{} installed", name),
@@ -458,8 +458,7 @@ pub fn install_single_dependency(name: String) -> JsDependencyStatus {
 
     #[cfg(target_os = "linux")]
     {
-        if name.starts_with("pip:") {
-            let module = &name[4..];
+        if let Some(module) = name.strip_prefix("pip:") {
             return match DependencyChecker::install_pip_module(module) {
                 Ok(()) => JsDependencyStatus {
                     ok: true,
@@ -484,11 +483,11 @@ pub fn install_single_dependency(name: String) -> JsDependencyStatus {
 
         let (cmd, args): (&str, Vec<&str>) =
             if Command::new("apt-get").arg("--version").output().is_ok() {
-                ("sudo", vec!["apt-get", "install", "-y", &name])
+                ("sudo", vec!["apt-get", "install", "-y", name])
             } else if Command::new("dnf").arg("--version").output().is_ok() {
-                ("sudo", vec!["dnf", "install", "-y", &name])
+                ("sudo", vec!["dnf", "install", "-y", name])
             } else if Command::new("pacman").arg("--version").output().is_ok() {
-                ("sudo", vec!["pacman", "-S", "--noconfirm", &name])
+                ("sudo", vec!["pacman", "-S", "--noconfirm", name])
             } else {
                 return JsDependencyStatus {
                     ok: false,
@@ -526,8 +525,7 @@ pub fn install_single_dependency(name: String) -> JsDependencyStatus {
         ]
         .into();
 
-        if name.starts_with("pip:") {
-            let module = &name[4..];
+        if let Some(module) = name.strip_prefix("pip:") {
             return match DependencyChecker::install_pip_module(module) {
                 Ok(()) => JsDependencyStatus {
                     ok: true,
@@ -540,7 +538,7 @@ pub fn install_single_dependency(name: String) -> JsDependencyStatus {
             };
         }
 
-        if let Some(winget_id) = winget_ids.get(name.as_str()) {
+        if let Some(winget_id) = winget_ids.get(name) {
             match Command::new("winget")
                 .args([
                     "install",
@@ -569,11 +567,59 @@ pub fn install_single_dependency(name: String) -> JsDependencyStatus {
                     message: format!("winget failed: {}", e),
                 },
             }
+        } else if name == "poppler" {
+            // Poppler has no winget package — try chocolatey
+            match Command::new("choco")
+                .args(["install", "-y", "poppler"])
+                .output()
+            {
+                Ok(out) if out.status.success() => JsDependencyStatus {
+                    ok: true,
+                    message: "poppler installed via chocolatey".to_string(),
+                },
+                _ => JsDependencyStatus {
+                    ok: false,
+                    message: "poppler: no winget package available, install via chocolatey or bundled installer".to_string(),
+                },
+            }
         } else {
             JsDependencyStatus {
                 ok: false,
                 message: format!("Unknown package: {}", name),
             }
+        }
+    }
+}
+
+/// Installs a dependency by name or category. Categories are expanded into
+/// their individual deps. Returns ok/message.
+#[tauri::command]
+pub fn install_single_dependency(name: String) -> JsDependencyStatus {
+    let deps = category_deps(&name);
+
+    // If category_deps returned empty, treat `name` as an individual dep name
+    if deps.is_empty() {
+        return install_one_dep(&name);
+    }
+
+    let mut errors = Vec::new();
+
+    for dep in deps {
+        let result = install_one_dep(dep);
+        if !result.ok {
+            errors.push(result.message);
+        }
+    }
+
+    if errors.is_empty() {
+        JsDependencyStatus {
+            ok: true,
+            message: format!("{} ready", name),
+        }
+    } else {
+        JsDependencyStatus {
+            ok: false,
+            message: errors.join("; "),
         }
     }
 }
