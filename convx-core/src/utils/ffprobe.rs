@@ -1,6 +1,6 @@
 use serde_json::Value;
 use std::path::Path;
-use std::process::Command;
+use super::deps::silent_command;
 
 use crate::utils::DependencyChecker;
 
@@ -12,7 +12,7 @@ impl FfprobeInfo {
     /// Probe a file. Returns None if ffprobe is unavailable or the file can't be probed.
     pub fn probe(path: &Path) -> Option<Self> {
         let ffprobe = DependencyChecker::ffprobe_executable()?;
-        let output = Command::new(ffprobe)
+        let output = silent_command(ffprobe)
             .args([
                 "-v",
                 "quiet",

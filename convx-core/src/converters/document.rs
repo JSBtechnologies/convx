@@ -9,7 +9,7 @@ use crate::utils::DependencyChecker;
 use chrono::Utc;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use crate::utils::deps::silent_command;
 use uuid::Uuid;
 
 pub struct DocumentConverter;
@@ -29,7 +29,7 @@ impl DocumentConverter {
                 reason: "pandoc not found. Install pandoc for document conversion.".to_string(),
             })?;
 
-        let mut cmd = Command::new(&pandoc);
+        let mut cmd = silent_command(&pandoc);
 
         if let Some(from) = from_flag {
             cmd.arg(format!("--from={}", from));
@@ -81,7 +81,7 @@ impl DocumentConverter {
         // Step 1: pandoc → temp HTML
         let temp_html = std::env::temp_dir().join(format!("convx-pandoc-{}.html", Uuid::new_v4()));
 
-        let mut pandoc_cmd = Command::new(&pandoc);
+        let mut pandoc_cmd = silent_command(&pandoc);
         if let Some(from) = from_flag {
             pandoc_cmd.arg(format!("--from={}", from));
         }
@@ -107,7 +107,7 @@ impl DocumentConverter {
         }
 
         // Step 2: weasyprint HTML → PDF
-        let mut wp_cmd = Command::new(&weasyprint);
+        let mut wp_cmd = silent_command(&weasyprint);
         wp_cmd.arg(&temp_html).arg(output);
         DependencyChecker::set_lib_env(&mut wp_cmd);
 
@@ -140,7 +140,7 @@ impl DocumentConverter {
                 reason: "weasyprint not found. Install: pip install weasyprint".to_string(),
             })?;
 
-        let mut cmd = Command::new(&weasyprint);
+        let mut cmd = silent_command(&weasyprint);
         cmd.arg(input).arg(output);
         DependencyChecker::set_lib_env(&mut cmd);
 
@@ -175,7 +175,7 @@ impl DocumentConverter {
                 output.display()
             );
 
-            let mut cmd = Command::new(python);
+            let mut cmd = silent_command(python);
             cmd.args(["-c", &script]);
             DependencyChecker::set_lib_env(&mut cmd);
 
@@ -214,7 +214,7 @@ impl DocumentConverter {
             .map(Path::to_path_buf)
             .unwrap_or_else(|| PathBuf::from("."));
 
-        let status = Command::new(soffice)
+        let status = silent_command(soffice)
             .args([
                 "--headless",
                 "--convert-to",
@@ -297,7 +297,7 @@ impl DocumentConverter {
             .to_string();
         let prefix = out_dir.join(&stem);
 
-        let mut cmd = Command::new(pdftoppm);
+        let mut cmd = silent_command(pdftoppm);
         cmd.arg(input);
 
         let (start, end) = Self::parse_page_range(options);
@@ -388,7 +388,7 @@ impl DocumentConverter {
             let temp_png =
                 std::env::temp_dir().join(format!("convx-img2pdf-{}.png", Uuid::new_v4()));
 
-            let status = Command::new(vips)
+            let status = silent_command(vips)
                 .arg("copy")
                 .arg(input)
                 .arg(&temp_png)

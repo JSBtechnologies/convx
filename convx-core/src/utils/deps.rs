@@ -3,6 +3,19 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// Creates a Command that hides the console window on Windows.
+/// On other platforms, this is identical to `Command::new()`.
+pub fn silent_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
+    let mut cmd = Command::new(program);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
 pub struct DependencyChecker;
 
 impl DependencyChecker {
@@ -117,7 +130,7 @@ impl DependencyChecker {
     fn resolve_binary(binary: &str, version_arg: &str) -> Option<String> {
         for candidate in Self::candidate_paths(binary) {
             if !candidate.contains('/') || Path::new(&candidate).exists() {
-                if let Ok(output) = Command::new(&candidate).arg(version_arg).output() {
+                if let Ok(output) = silent_command(&candidate).arg(version_arg).output() {
                     if output.status.success() {
                         return Some(candidate);
                     }
@@ -202,7 +215,7 @@ impl DependencyChecker {
                 .map_err(|e| format!("Failed to create ~/.convx: {}", e))?;
         }
 
-        let output = Command::new(&system_py)
+        let output = silent_command(&system_py)
             .args(["-m", "venv", &venv_dir.to_string_lossy()])
             .output()
             .map_err(|e| format!("Failed to run python3 -m venv: {}", e))?;
@@ -255,7 +268,7 @@ impl DependencyChecker {
 
         args.push(module.to_string());
 
-        let output = Command::new(&pip)
+        let output = silent_command(&pip)
             .args(&args)
             .output()
             .map_err(|e| format!("Failed to run pip install: {}", e))?;
@@ -474,7 +487,7 @@ impl DependencyChecker {
             return false;
         };
 
-        Command::new(py)
+        silent_command(py)
             .args(["-c", "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec(sys.argv[1]) else 1)"])
             .arg(module)
             .output()
@@ -580,7 +593,7 @@ impl DependencyChecker {
 
         // FFmpeg version
         if let Some(ffmpeg) = Self::ffmpeg_executable() {
-            if let Ok(output) = Command::new(ffmpeg).arg("-version").output() {
+            if let Ok(output) = silent_command(ffmpeg).arg("-version").output() {
                 if let Some(first_line) = String::from_utf8_lossy(&output.stdout).lines().next() {
                     versions.push(format!("FFmpeg: {}", first_line));
                 }
@@ -589,14 +602,14 @@ impl DependencyChecker {
 
         // libvips version
         if let Some(vips) = Self::vips_executable() {
-            if let Ok(output) = Command::new(vips).arg("--version").output() {
+            if let Ok(output) = silent_command(vips).arg("--version").output() {
                 let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 versions.push(format!("libvips: {}", version));
             }
         }
 
         if let Some(soffice) = Self::libreoffice_executable() {
-            if let Ok(output) = Command::new(soffice).arg("--version").output() {
+            if let Ok(output) = silent_command(soffice).arg("--version").output() {
                 let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if !version.is_empty() {
                     versions.push(format!("LibreOffice: {}", version));
@@ -605,7 +618,7 @@ impl DependencyChecker {
         }
 
         if let Some(pandoc) = Self::pandoc_executable() {
-            if let Ok(output) = Command::new(pandoc).arg("--version").output() {
+            if let Ok(output) = silent_command(pandoc).arg("--version").output() {
                 if let Some(first_line) = String::from_utf8_lossy(&output.stdout).lines().next() {
                     versions.push(format!("Pandoc: {}", first_line));
                 }
@@ -613,7 +626,7 @@ impl DependencyChecker {
         }
 
         if let Some(pdftoppm) = Self::pdftoppm_executable() {
-            if let Ok(output) = Command::new(pdftoppm).arg("-v").output() {
+            if let Ok(output) = silent_command(pdftoppm).arg("-v").output() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 if let Some(first_line) = stderr.lines().next() {
                     versions.push(format!("Poppler: {}", first_line));
@@ -622,7 +635,7 @@ impl DependencyChecker {
         }
 
         if let Some(py) = Self::python3_executable() {
-            if let Ok(output) = Command::new(py).arg("--version").output() {
+            if let Ok(output) = silent_command(py).arg("--version").output() {
                 let mut version = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if version.is_empty() {
                     version = String::from_utf8_lossy(&output.stderr).trim().to_string();

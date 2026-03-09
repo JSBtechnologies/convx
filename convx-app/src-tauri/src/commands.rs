@@ -1,10 +1,9 @@
 use convx::{
-    license, license::enterprise::ConversionAuditEvent, ConversionOptions, ConversionStatus,
-    ConvxEngine, DependencyChecker, Format, FormatCategory,
+    license, license::enterprise::ConversionAuditEvent, silent_command, ConversionOptions,
+    ConversionStatus, ConvxEngine, DependencyChecker, Format, FormatCategory,
 };
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, State, Window};
@@ -418,7 +417,7 @@ fn install_one_dep(name: &str) -> JsDependencyStatus {
                     message: format!("Invalid package name: {}", name),
                 };
             }
-            match Command::new(brew).args(["install", name]).output() {
+            match silent_command(brew).args(["install", name]).output() {
                 Ok(out) if out.status.success() => JsDependencyStatus {
                     ok: true,
                     message: format!("{} installed", name),
@@ -482,11 +481,11 @@ fn install_one_dep(name: &str) -> JsDependencyStatus {
         }
 
         let (cmd, args): (&str, Vec<&str>) =
-            if Command::new("apt-get").arg("--version").output().is_ok() {
+            if silent_command("apt-get").arg("--version").output().is_ok() {
                 ("sudo", vec!["apt-get", "install", "-y", name])
-            } else if Command::new("dnf").arg("--version").output().is_ok() {
+            } else if silent_command("dnf").arg("--version").output().is_ok() {
                 ("sudo", vec!["dnf", "install", "-y", name])
-            } else if Command::new("pacman").arg("--version").output().is_ok() {
+            } else if silent_command("pacman").arg("--version").output().is_ok() {
                 ("sudo", vec!["pacman", "-S", "--noconfirm", name])
             } else {
                 return JsDependencyStatus {
@@ -495,7 +494,7 @@ fn install_one_dep(name: &str) -> JsDependencyStatus {
                 };
             };
 
-        match Command::new(cmd).args(&args).output() {
+        match silent_command(cmd).args(&args).output() {
             Ok(out) if out.status.success() => JsDependencyStatus {
                 ok: true,
                 message: format!("{} installed", name),
@@ -528,7 +527,7 @@ fn install_one_dep(name: &str) -> JsDependencyStatus {
         if let Some(module) = name.strip_prefix("pip:") {
             // Ensure Python is installed before attempting pip modules
             if DependencyChecker::python3_executable().is_none() {
-                let _ = Command::new("winget")
+                let _ = silent_command("winget")
                     .args([
                         "install", "-e", "--id", "Python.Python.3.13",
                         "--accept-package-agreements", "--accept-source-agreements",
@@ -548,7 +547,7 @@ fn install_one_dep(name: &str) -> JsDependencyStatus {
         }
 
         if let Some(winget_id) = winget_ids.get(name) {
-            match Command::new("winget")
+            match silent_command("winget")
                 .args([
                     "install",
                     "-e",
@@ -578,7 +577,7 @@ fn install_one_dep(name: &str) -> JsDependencyStatus {
             }
         } else if name == "poppler" {
             // Poppler has no winget package — try chocolatey
-            match Command::new("choco")
+            match silent_command("choco")
                 .args(["install", "-y", "poppler"])
                 .output()
             {
@@ -764,7 +763,7 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
             if !venv_dir.join("bin").join("python3").exists() {
                 if let Some(py) = DependencyChecker::convx_python() {
                     let _ = std::fs::create_dir_all(venv_dir.parent().unwrap_or(Path::new(".")));
-                    match Command::new(&py)
+                    match silent_command(&py)
                         .args(["-m", "venv", &venv_dir.to_string_lossy()])
                         .output()
                     {
@@ -799,7 +798,7 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
                     .collect();
 
                 if !missing_modules.is_empty() {
-                    let mut cmd = Command::new(&pip);
+                    let mut cmd = silent_command(&pip);
                     cmd.arg("install");
                     if let Some(ref wd) = wheels_dir {
                         if wd.exists() {
@@ -844,7 +843,7 @@ pub fn ensure_post_install() -> JsPostInstallStatus {
                 .collect();
 
             if !missing_modules.is_empty() {
-                let mut cmd = Command::new(&pip);
+                let mut cmd = silent_command(&pip);
                 cmd.arg("install");
                 if let Some(wheels) = DependencyChecker::bundled_wheels_dir() {
                     cmd.args(["--find-links", &wheels.to_string_lossy()]);
@@ -964,7 +963,7 @@ pub fn reveal_in_file_manager(path: String) -> Result<(), String> {
 
     #[cfg(target_os = "macos")]
     {
-        let status = Command::new("open")
+        let status = silent_command("open")
             .arg("-R")
             .arg(&resolved)
             .status()
@@ -977,7 +976,7 @@ pub fn reveal_in_file_manager(path: String) -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     {
-        let status = Command::new("explorer")
+        let status = silent_command("explorer")
             .arg("/select,")
             .arg(&resolved)
             .status()
@@ -991,7 +990,7 @@ pub fn reveal_in_file_manager(path: String) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         let dir = p.parent().unwrap_or(p);
-        let status = Command::new("xdg-open")
+        let status = silent_command("xdg-open")
             .arg(dir)
             .status()
             .map_err(|e| format!("Failed to launch file manager: {}", e))?;

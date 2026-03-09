@@ -17,5 +17,6 @@ pub use types::options::{
 };
 pub use types::preset::Preset;
 pub use types::result::{ConversionResult, ConversionStatus};
+pub use utils::silent_command;
 pub use utils::DependencyChecker;
 pub use utils::FfprobeInfo;

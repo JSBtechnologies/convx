@@ -13,7 +13,7 @@ use serde_json::Value;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::process::Command;
+use crate::utils::deps::silent_command;
 use uuid::Uuid;
 
 pub struct DataConverter;
@@ -149,7 +149,7 @@ impl DataConverter {
             _ => return Err(ConvxError::UnsupportedConversion { from, to }),
         };
 
-        let out = Command::new(py)
+        let out = silent_command(py)
             .args(["-c", script])
             .arg(input)
             .arg(output)
@@ -1332,7 +1332,7 @@ weasyprint.HTML(filename=sys.argv[1]).write_pdf(sys.argv[2])
             lib_path = lib_path.replace('\'', "\\'"),
         );
 
-        let mut cmd = Command::new(&py);
+        let mut cmd = silent_command(&py);
         cmd.args(["-c", &script]).arg(&temp_html).arg(output);
         DependencyChecker::set_lib_env(&mut cmd);
         let status = cmd.output().map_err(|e| ConvxError::ConversionFailed {
@@ -1554,7 +1554,7 @@ f.close()"
         input: &Path,
         output: &Path,
     ) -> Result<(), ConvxError> {
-        let mut cmd = Command::new(py);
+        let mut cmd = silent_command(py);
         cmd.args(["-c", script]).arg(input).arg(output);
         // Some Python packages (weasyprint, etc.) need native libs via ctypes
         DependencyChecker::set_lib_env(&mut cmd);

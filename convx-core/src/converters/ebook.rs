@@ -9,7 +9,7 @@ use crate::utils::DependencyChecker;
 use chrono::Utc;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use crate::utils::deps::silent_command;
 use uuid::Uuid;
 
 pub struct EbookConverter;
@@ -67,7 +67,7 @@ finally:
 "#
         .to_string();
 
-        let out = Command::new(&python)
+        let out = silent_command(&python)
             .args(["-c", &script])
             .arg(input)
             .arg(output)

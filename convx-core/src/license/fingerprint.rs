@@ -31,7 +31,7 @@
 use crate::license::crypto::proprietary_tier_hash;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::process::Command;
+use crate::utils::deps::silent_command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceFingerprint {
@@ -772,7 +772,7 @@ fn read_file_trimmed(path: &str) -> Option<String> {
 // ─── Shared helpers ────────────────────────────────────────────────────────
 
 fn run_cmd(program: &str, args: &[&str]) -> Option<String> {
-    Command::new(program)
+    silent_command(program)
         .args(args)
         .output()
         .ok()

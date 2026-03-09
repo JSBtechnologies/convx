@@ -9,7 +9,8 @@ use crate::utils::{DependencyChecker, FfprobeInfo};
 use chrono::Utc;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
-use std::process::{Command, Stdio};
+use crate::utils::deps::silent_command;
+use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use uuid::Uuid;
 
@@ -126,7 +127,7 @@ impl VideoConverter {
 
         let ffmpeg = DependencyChecker::ffmpeg_executable().ok_or(ConvxError::FfmpegNotFound)?;
 
-        let status = Command::new(ffmpeg)
+        let status = silent_command(ffmpeg)
             .args(&args)
             .output()
             .map_err(|_| ConvxError::FfmpegNotFound)?;
@@ -193,7 +194,7 @@ impl VideoConverter {
 
         let ffmpeg = DependencyChecker::ffmpeg_executable().ok_or(ConvxError::FfmpegNotFound)?;
 
-        let mut child = Command::new(ffmpeg)
+        let mut child = silent_command(ffmpeg)
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

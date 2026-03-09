@@ -8,7 +8,7 @@ use crate::types::{
 use crate::utils::DependencyChecker;
 use chrono::Utc;
 use std::path::Path;
-use std::process::Command;
+use crate::utils::deps::silent_command;
 use uuid::Uuid;
 
 pub struct ImageConverter;
@@ -34,7 +34,7 @@ impl ImageConverter {
             output.to_string_lossy().to_string(),
         ];
 
-        let status = Command::new(ffmpeg)
+        let status = silent_command(ffmpeg)
             .args(&args)
             .output()
             .map_err(|_| ConvxError::FfmpegNotFound)?;
@@ -53,7 +53,7 @@ impl ImageConverter {
     fn convert_svg_to_png_with_vips(input: &Path, output_png: &Path) -> Result<(), ConvxError> {
         let vips = DependencyChecker::vips_executable().ok_or(ConvxError::VipsNotFound)?;
 
-        let status = Command::new(vips)
+        let status = silent_command(vips)
             .arg("copy")
             .arg(input)
             .arg(output_png)
@@ -142,7 +142,7 @@ impl ImageConverter {
             );
 
             if needs_resize {
-                let mut cmd = Command::new(&vips);
+                let mut cmd = silent_command(&vips);
                 cmd.arg("thumbnail");
                 cmd.arg(input);
                 cmd.arg(&output_str);
@@ -165,7 +165,7 @@ impl ImageConverter {
                     });
                 }
             } else {
-                let mut cmd = Command::new(&vips);
+                let mut cmd = silent_command(&vips);
                 cmd.arg("copy");
                 cmd.arg(input);
                 cmd.arg(&output_str);
