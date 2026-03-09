@@ -526,6 +526,15 @@ fn install_one_dep(name: &str) -> JsDependencyStatus {
         .into();
 
         if let Some(module) = name.strip_prefix("pip:") {
+            // Ensure Python is installed before attempting pip modules
+            if DependencyChecker::python3_executable().is_none() {
+                let _ = Command::new("winget")
+                    .args([
+                        "install", "-e", "--id", "Python.Python.3.13",
+                        "--accept-package-agreements", "--accept-source-agreements",
+                    ])
+                    .output();
+            }
             return match DependencyChecker::install_pip_module(module) {
                 Ok(()) => JsDependencyStatus {
                     ok: true,
