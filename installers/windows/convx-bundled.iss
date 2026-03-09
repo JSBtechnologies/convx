@@ -5,7 +5,7 @@
 
 #define MyAppName "ConvX"
 #define MyAppPublisher "JSB Technologies"
-#define MyAppExeName "convx.exe"
+#define MyAppExeName "convx-app.exe"
 #ifndef AppVersion
   #define AppVersion "1.0.0"
 #endif
@@ -13,7 +13,7 @@
   #define OutputDir "."
 #endif
 #ifndef TauriDir
-  #error TauriDir define is required. Path to directory containing convx.exe from Tauri build.
+  #error TauriDir define is required. Path to directory containing convx-app.exe from Tauri build.
 #endif
 #ifndef DepsDir
   #error DepsDir define is required. Example: /DDepsDir="C:\path\to\deps"

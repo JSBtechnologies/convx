@@ -3,7 +3,7 @@
 Builds the convx Windows bundled installer EXE (Inno Setup + deps).
 
 .PARAMETER TauriDir
-Optional explicit path to directory containing convx.exe from Tauri build.
+Optional explicit path to directory containing convx-app.exe from Tauri build.
 
 .PARAMETER DepsDir
 Optional path to deps directory (defaults to .\deps).
@@ -43,16 +43,16 @@ if ([string]::IsNullOrWhiteSpace($AppVersion)) {
 
 # Resolve Tauri output directory
 if ([string]::IsNullOrWhiteSpace($TauriDir)) {
-  # Look for convx.exe in the Tauri release build output
+  # Look for convx-app.exe in the Tauri release build output
   $TauriBuildDir = "$repoRoot/target/release"
-  $TauriExe = Get-ChildItem -Path $TauriBuildDir -Filter "convx.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+  $TauriExe = Get-ChildItem -Path $TauriBuildDir -Filter "convx-app.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $TauriExe) {
-    Write-Error "convx.exe not found in $TauriBuildDir. Build first: cd convx-app && cargo tauri build"
+    Write-Error "convx-app.exe not found in $TauriBuildDir. Build first: cd convx-app && cargo tauri build"
   }
   $TauriDir = $TauriBuildDir
 }
-if (-not (Test-Path (Join-Path $TauriDir "convx.exe"))) {
-  Write-Error "convx.exe not found in TauriDir: $TauriDir"
+if (-not (Test-Path (Join-Path $TauriDir "convx-app.exe"))) {
+  Write-Error "convx-app.exe not found in TauriDir: $TauriDir"
 }
 
 # Resolve deps directory
