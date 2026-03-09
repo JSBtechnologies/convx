@@ -351,6 +351,12 @@ impl DependencyChecker {
                 return Some(bundled.to_string_lossy().to_string());
             }
         }
+        // On Windows, Python installs as "python" not "python3"
+        if cfg!(windows) {
+            if let Some(py) = Self::resolve_binary("python", "--version") {
+                return Some(py);
+            }
+        }
         Self::resolve_binary("python3", "--version")
     }
 
