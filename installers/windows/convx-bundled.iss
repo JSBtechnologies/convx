@@ -5,6 +5,7 @@
 
 #define MyAppName "ConvX"
 #define MyAppPublisher "JSB Technologies"
+#define MyAppURL "https://convx.dev"
 #define MyAppExeName "convx-app.exe"
 #ifndef AppVersion
   #define AppVersion "1.0.0"
@@ -24,10 +25,12 @@ AppId={{E11F2AA0-46DB-4E79-BB2A-4F6F6A65A6EA}
 AppName={#MyAppName}
 AppVersion={#AppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}
 DefaultDirName={autopf}\convx
+DefaultGroupName={#MyAppName}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-DisableProgramGroupPage=yes
 OutputDir={#OutputDir}
 OutputBaseFilename=ConvX-Setup
 Compression=lzma2/ultra64
@@ -36,10 +39,12 @@ WizardStyle=modern
 PrivilegesRequired=admin
 LicenseFile=..\EULA.txt
 DiskSpanning=no
+UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayName={#MyAppName}
 
 [Files]
-; Tauri app binary + resources
-Source: "{#TauriDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+; Tauri app binary only (not the entire build dir)
+Source: "{#TauriDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 ; MCP wrapper
 Source: "convx-mcp.cmd"; DestDir: "{app}"; Flags: ignoreversion
@@ -50,6 +55,14 @@ Source: "{#DepsDir}\lib\*"; DestDir: "{app}\deps\lib"; Flags: ignoreversion recu
 Source: "{#DepsDir}\LibreOffice\*"; DestDir: "{app}\deps\LibreOffice"; Flags: ignoreversion recursesubdirs
 Source: "{#DepsDir}\python\*"; DestDir: "{app}\deps\python"; Flags: ignoreversion recursesubdirs
 Source: "{#DepsDir}\wheels\*"; DestDir: "{app}\deps\wheels"; Flags: ignoreversion recursesubdirs
+
+[Icons]
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Tasks]
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Run]
 ; Install Python packages from bundled wheels using bundled pip (no venv needed)
