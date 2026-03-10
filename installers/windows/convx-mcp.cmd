@@ -1,2 +1,2 @@
 @echo off
-"%~dp0convx.exe" --mcp %*
+"%~dp0convx-app.exe" --mcp %*

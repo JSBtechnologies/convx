@@ -88,6 +88,13 @@ impl ImageConverter {
             }
         }
 
+        // On Windows, bundled libheif often lacks HEVC encoder; use AV1 instead
+        if cfg!(target_os = "windows")
+            && matches!(options.output_format, Format::Heic | Format::Heif)
+        {
+            parts.push("compression=av1".to_string());
+        }
+
         if image_opts.map(|o| o.strip_metadata).unwrap_or(false) {
             parts.push("strip".to_string());
         }

@@ -45,6 +45,9 @@ export function useConvert() {
     if (!store.inputFile) {
       return { ok: false, reason: 'error', message: 'No input file selected' };
     }
+    if (!store.outputFormat) {
+      return { ok: false, reason: 'error', message: 'No output format selected' };
+    }
 
     const bridge = await getBridge();
     store.setResult(null);

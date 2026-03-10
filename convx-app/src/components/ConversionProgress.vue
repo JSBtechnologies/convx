@@ -58,7 +58,7 @@
       <q-icon name="sym_r_error" size="48px" color="negative" />
       <span class="conv-progress__error-text">Conversion failed</span>
       <span v-if="errorMessage" class="conv-progress__error-detail mono">{{ errorMessage }}</span>
-      <button class="conv-progress__retry" @click="emit('convert')">
+      <button class="conv-progress__retry" :disabled="!canConvert" @click="emit('convert')">
         Retry
       </button>
     </div>

@@ -781,6 +781,7 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "convx-core",
+ "dunce",
  "serde",
  "serde_json",
  "tauri",

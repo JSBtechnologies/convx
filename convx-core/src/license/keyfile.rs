@@ -178,9 +178,21 @@ impl LicenseFile {
                 );
             }
             Match::Different => {
-                return ValidationResult::DeviceMismatch {
-                    stored_name: self.device.device_name.clone(),
-                };
+                // On Windows, fingerprint signals can vary between execution
+                // contexts (e.g. GUI vs MCP subprocess vs terminal) due to
+                // PowerShell/WMI environment differences. Accept if the device
+                // name matches as a fallback — this is still the same machine.
+                if cfg!(target_os = "windows")
+                    && current.device_name == self.device.device_name
+                {
+                    tracing::info!(
+                        "Device fingerprint hash differs but device name matches — accepting on Windows"
+                    );
+                } else {
+                    return ValidationResult::DeviceMismatch {
+                        stored_name: self.device.device_name.clone(),
+                    };
+                }
             }
         }
 

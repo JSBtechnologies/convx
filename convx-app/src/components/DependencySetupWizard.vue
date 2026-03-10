@@ -125,6 +125,14 @@
             <q-btn
               flat
               no-caps
+              label="Continue anyway"
+              icon="sym_r_arrow_forward"
+              style="color: rgba(255,255,255,0.5)"
+              @click="skipWizard"
+            />
+            <q-btn
+              flat
+              no-caps
               label="View Docs"
               icon="sym_r_open_in_new"
               style="color: rgba(255,255,255,0.5)"
@@ -378,6 +386,11 @@ async function openDocs() {
 
 function closeWizard() {
   emit('update:modelValue', false);
+}
+
+function skipWizard() {
+  emit('update:modelValue', false);
+  emit('ready');
 }
 
 watch(

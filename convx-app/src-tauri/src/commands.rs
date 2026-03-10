@@ -3,7 +3,7 @@ use convx::{
     ConversionStatus, ConvxEngine, DependencyChecker, Format, FormatCategory,
 };
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, State, Window};
@@ -13,37 +13,58 @@ pub struct ConvxState {
     pub cancel_flag: Arc<AtomicBool>,
 }
 
-fn sensitive_roots() -> &'static [&'static str] {
-    &[
-        "/System",
-        "/Library",
-        "/private/etc",
-        "/etc",
-        "/bin",
-        "/sbin",
-        "/usr/bin",
-        "/usr/sbin",
-        "/var/db",
-        "/dev",
-    ]
+fn sensitive_roots() -> Vec<PathBuf> {
+    if cfg!(target_os = "windows") {
+        vec![
+            PathBuf::from(r"C:\Windows"),
+            PathBuf::from(r"C:\Program Files"),
+            PathBuf::from(r"C:\Program Files (x86)"),
+        ]
+    } else {
+        vec![
+            PathBuf::from("/System"),
+            PathBuf::from("/Library"),
+            PathBuf::from("/private/etc"),
+            PathBuf::from("/etc"),
+            PathBuf::from("/bin"),
+            PathBuf::from("/sbin"),
+            PathBuf::from("/usr/bin"),
+            PathBuf::from("/usr/sbin"),
+            PathBuf::from("/var/db"),
+            PathBuf::from("/dev"),
+        ]
+    }
 }
 
 fn allowed_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
 
-    if let Ok(home) = std::env::var("HOME") {
-        if let Ok(home_canon) = std::fs::canonicalize(home) {
-            roots.push(home_canon);
+    // HOME (macOS/Linux) or USERPROFILE (Windows)
+    for var in &["HOME", "USERPROFILE"] {
+        if let Ok(home) = std::env::var(var) {
+            if let Ok(home_canon) = dunce::canonicalize(&home) {
+                roots.push(home_canon);
+            }
         }
     }
 
-    if let Ok(temp_canon) = std::fs::canonicalize(std::env::temp_dir()) {
+    if let Ok(temp_canon) = dunce::canonicalize(std::env::temp_dir()) {
         roots.push(temp_canon);
     }
 
-    let volumes = PathBuf::from("/Volumes");
-    if volumes.exists() {
-        roots.push(volumes);
+    if cfg!(target_os = "windows") {
+        // Allow all drive roots (D:\, E:\, etc.) so users can access files anywhere
+        for letter in b'A'..=b'Z' {
+            let drive = PathBuf::from(format!("{}:\\", letter as char));
+            if drive.exists() {
+                roots.push(drive);
+            }
+        }
+    } else {
+        let volumes = PathBuf::from("/Volumes");
+        if volumes.exists() {
+            roots.push(volumes);
+        }
     }
 
     roots
@@ -78,7 +99,7 @@ fn resolve_existing_path(path: &str) -> Result<PathBuf, String> {
         return Err(format!("Path must be absolute: {}", path));
     }
 
-    let canonical = std::fs::canonicalize(&raw)
+    let canonical = dunce::canonicalize(&raw)
         .map_err(|e| format!("Invalid path {}: {}", raw.display(), e))?;
     ensure_allowed_path(canonical)
 }
@@ -90,7 +111,7 @@ fn resolve_output_path(path: &str) -> Result<PathBuf, String> {
     }
 
     if raw.exists() {
-        let canonical = std::fs::canonicalize(&raw)
+        let canonical = dunce::canonicalize(&raw)
             .map_err(|e| format!("Invalid output path {}: {}", raw.display(), e))?;
         return ensure_allowed_path(canonical);
     }
@@ -104,7 +125,7 @@ fn resolve_output_path(path: &str) -> Result<PathBuf, String> {
         .parent()
         .ok_or_else(|| format!("Output path has no parent: {}", raw.display()))?;
 
-    let canonical_parent = std::fs::canonicalize(parent)
+    let canonical_parent = dunce::canonicalize(parent)
         .map_err(|e| format!("Output parent directory is invalid: {}", e))?;
     let canonical_output = canonical_parent.join(file_name);
 
@@ -316,15 +337,27 @@ pub fn get_conversion_targets(from: String) -> Vec<String> {
 
 #[tauri::command]
 pub fn check_dependencies() -> JsDependencyStatus {
-    match DependencyChecker::check_all() {
-        Ok(()) => JsDependencyStatus {
+    // Only gate the app on core dependencies (ffmpeg + vips).
+    // Python-based deps (data, formats) are optional and should not
+    // block the user from using image/video/audio conversions.
+    let mut missing = Vec::new();
+    if DependencyChecker::check_ffmpeg().is_err() {
+        missing.push("FFmpeg");
+    }
+    if DependencyChecker::check_vips().is_err() {
+        missing.push("libvips");
+    }
+
+    if missing.is_empty() {
+        JsDependencyStatus {
             ok: true,
             message: DependencyChecker::get_versions(),
-        },
-        Err(msg) => JsDependencyStatus {
+        }
+    } else {
+        JsDependencyStatus {
             ok: false,
-            message: msg,
-        },
+            message: format!("Missing core dependencies: {}", missing.join(", ")),
+        }
     }
 }
 
@@ -344,12 +377,12 @@ fn category_deps(category: &str) -> Vec<&'static str> {
 pub fn get_missing_dependencies() -> Vec<String> {
     let mut missing = Vec::new();
 
-    // Media: ffmpeg + vips
+    // Media: ffmpeg + vips (core — blocks the app)
     if DependencyChecker::check_ffmpeg().is_err() || DependencyChecker::check_vips().is_err() {
         missing.push("media".to_string());
     }
 
-    // Document: libreoffice + pandoc + poppler
+    // Document: libreoffice + pandoc + poppler (core for document conversions)
     if DependencyChecker::libreoffice_executable().is_none()
         || DependencyChecker::pandoc_executable().is_none()
         || DependencyChecker::pdftoppm_executable().is_none()
@@ -357,24 +390,25 @@ pub fn get_missing_dependencies() -> Vec<String> {
         missing.push("document".to_string());
     }
 
-    // Data: pandas, openpyxl, pyarrow, numpy, h5py
-    if DependencyChecker::python3_executable().is_none()
-        || !DependencyChecker::python_has_module("pandas")
-        || !DependencyChecker::python_has_module("openpyxl")
-        || !DependencyChecker::python_has_module("pyarrow")
-        || !DependencyChecker::python_has_module("numpy")
-        || !DependencyChecker::python_has_module("h5py")
-    {
-        missing.push("data".to_string());
-    }
+    // Data and formats (Python-based) are optional — only report if Python
+    // is actually installed but modules are missing, so the wizard can fix them.
+    // If Python itself isn't installed, skip these silently.
+    if DependencyChecker::python3_executable().is_some() {
+        if !DependencyChecker::python_has_module("pandas")
+            || !DependencyChecker::python_has_module("openpyxl")
+            || !DependencyChecker::python_has_module("pyarrow")
+            || !DependencyChecker::python_has_module("numpy")
+            || !DependencyChecker::python_has_module("h5py")
+        {
+            missing.push("data".to_string());
+        }
 
-    // Formats: weasyprint, pdf2docx, mobi
-    if DependencyChecker::python3_executable().is_none()
-        || !DependencyChecker::python_has_module("weasyprint")
-        || !DependencyChecker::python_has_module("pdf2docx")
-        || !DependencyChecker::python_has_module("mobi")
-    {
-        missing.push("formats".to_string());
+        if !DependencyChecker::python_has_module("weasyprint")
+            || !DependencyChecker::python_has_module("pdf2docx")
+            || !DependencyChecker::python_has_module("mobi")
+        {
+            missing.push("formats".to_string());
+        }
     }
 
     missing
@@ -1217,10 +1251,17 @@ pub struct JsMcpConfig {
 }
 
 #[tauri::command]
-pub fn get_mcp_config() -> Result<JsMcpConfig, String> {
+/// Returns the canonical path to the current executable, without the \\?\ UNC prefix on Windows.
+fn mcp_binary_path() -> Result<String, String> {
     let exe =
         std::env::current_exe().map_err(|e| format!("Could not determine binary path: {}", e))?;
-    let binary_path = exe.to_string_lossy().to_string();
+    let canonical = dunce::canonicalize(&exe).unwrap_or(exe);
+    Ok(canonical.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn get_mcp_config() -> Result<JsMcpConfig, String> {
+    let binary_path = mcp_binary_path()?;
 
     let config_entry = serde_json::json!({
         "mcpServers": {
@@ -1243,9 +1284,7 @@ pub fn get_mcp_config() -> Result<JsMcpConfig, String> {
 
 #[tauri::command]
 pub fn auto_configure_mcp(target: String) -> Result<String, String> {
-    let exe =
-        std::env::current_exe().map_err(|e| format!("Could not determine binary path: {}", e))?;
-    let binary_path = exe.to_string_lossy().to_string();
+    let binary_path = mcp_binary_path()?;
 
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
@@ -1313,11 +1352,27 @@ pub fn auto_configure_mcp(target: String) -> Result<String, String> {
             .map_err(|e| format!("Could not create config directory: {}", e))?;
     }
 
-    std::fs::write(
-        &config_path,
-        serde_json::to_string_pretty(&config).unwrap_or_else(|_| "{}".to_string()),
-    )
-    .map_err(|e| format!("Could not write config: {}", e))?;
+    let json_bytes =
+        serde_json::to_string_pretty(&config).unwrap_or_else(|_| "{}".to_string());
+
+    // Write to a temp file first, then rename — avoids issues if Claude Desktop
+    // has the config file open (Windows mandatory file locking).
+    let tmp_path = config_path.with_extension("json.tmp");
+    std::fs::write(&tmp_path, &json_bytes)
+        .map_err(|e| format!("Could not write temp config: {}", e))?;
+
+    // Try rename (atomic on same filesystem). If it fails (file locked),
+    // fall back to direct write.
+    if std::fs::rename(&tmp_path, &config_path).is_err() {
+        let _ = std::fs::remove_file(&tmp_path);
+        std::fs::write(&config_path, &json_bytes)
+            .map_err(|e| {
+                format!(
+                    "Could not write config (is Claude Desktop running? Close it and retry): {}",
+                    e
+                )
+            })?;
+    }
 
     Ok(config_path.to_string_lossy().to_string())
 }

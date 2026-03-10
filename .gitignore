@@ -65,3 +65,6 @@ yarn-error.log*
 
 # Wrangler local state
 license-server/.wrangler/
+
+# Bundled installer dependencies (binaries, too large for git)
+installers/windows/deps/

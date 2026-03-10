@@ -71,7 +71,7 @@ Filename: "{app}\deps\python\python.exe"; Parameters: "-m pip install --no-index
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Registry]
-Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}\deps\bin;{app}\deps\lib"; Check: NeedsAddPath('{app}\deps\bin')
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app};{app}\deps\bin;{app}\deps\lib"; Check: NeedsAddPath('{app}')
 
 [Code]
 function NeedsAddPath(Param: string): boolean;

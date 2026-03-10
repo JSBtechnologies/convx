@@ -7,6 +7,7 @@ use std::process::Command;
 /// On other platforms, this is identical to `Command::new()`.
 pub fn silent_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
     let mut cmd = Command::new(program);
+    cmd.stdin(std::process::Stdio::null());
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
@@ -335,6 +336,26 @@ impl DependencyChecker {
             }
         }
 
+        // On Windows, avoid resolve_binary for soffice because running
+        // `soffice --version` opens the LibreOffice GUI window.
+        // Instead, just check if the executable exists on PATH.
+        #[cfg(target_os = "windows")]
+        {
+            if let Ok(output) = silent_command("where").arg("soffice.exe").output() {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout);
+                    if let Some(first_line) = path.lines().next() {
+                        let p = first_line.trim();
+                        if !p.is_empty() && Path::new(p).exists() {
+                            return Some(p.to_string());
+                        }
+                    }
+                }
+            }
+            return None;
+        }
+
+        #[cfg(not(target_os = "windows"))]
         Self::resolve_binary("soffice", "--version")
     }
 
@@ -609,7 +630,11 @@ impl DependencyChecker {
         }
 
         if let Some(soffice) = Self::libreoffice_executable() {
-            if let Ok(output) = silent_command(soffice).arg("--version").output() {
+            // On Windows, running `soffice --version` opens the GUI window,
+            // so just report the path instead of the version.
+            if cfg!(target_os = "windows") {
+                versions.push(format!("LibreOffice: {}", soffice));
+            } else if let Ok(output) = silent_command(&soffice).arg("--version").output() {
                 let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if !version.is_empty() {
                     versions.push(format!("LibreOffice: {}", version));

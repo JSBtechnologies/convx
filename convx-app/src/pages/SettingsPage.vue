@@ -333,7 +333,7 @@ async function autoConfigureMcp() {
   try {
     const bridge = await getBridge();
     const path = await bridge.autoConfigureMcp(mcpTarget.value);
-    Notify.create({ type: 'positive', message: `MCP server configured in ${path}` });
+    Notify.create({ type: 'positive', message: `MCP server configured. Restart ${mcpTarget.value === 'claude-desktop' ? 'Claude Desktop' : 'Cursor'} to apply.`, timeout: 5000 });
   } catch (e) {
     Notify.create({ type: 'negative', message: `Auto-configure failed: ${String(e)}` });
   } finally {
