@@ -1,0 +1,35 @@
+{
+  "name": "convx-app",
+  "version": "1.0.0",
+  "description": "Local-first file conversion",
+  "productName": "convx",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "quasar dev",
+    "build": "quasar build",
+    "lint": "eslint --ext .js,.ts,.vue ./src",
+    "tauri:dev": "cargo tauri dev",
+    "tauri:bundle": "cargo tauri build"
+  },
+  "dependencies": {
+    "@quasar/extras": "^1.16.0",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-shell": "^2.3.5",
+    "@vueuse/core": "^14.2.0",
+    "pinia": "^2.2.0",
+    "quasar": "^2.17.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0"
+  },
+  "devDependencies": {
+    "@quasar/app-vite": "^2.0.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "sass-embedded": "^1.80.0",
+    "typescript": "~5.6.0",
+    "vite-plugin-checker": "^0.8.0",
+    "vue-tsc": "^2.0.0"
+  }
+}

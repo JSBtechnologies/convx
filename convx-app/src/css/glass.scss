@@ -1,0 +1,70 @@
+// Glassmorphism Design System
+
+@mixin glass-panel($opacity: 0.06, $blur: 20px) {
+  background: rgba(255, 255, 255, $opacity);
+  backdrop-filter: blur($blur);
+  -webkit-backdrop-filter: blur($blur);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+}
+
+@mixin glass-card {
+  @include glass-panel(0.04, 16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+@mixin glass-sidebar {
+  @include glass-panel(0.03, 24px);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
+}
+
+@mixin glass-input {
+  @include glass-panel(0.06, 12px);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+
+  &:focus-within {
+    border-color: rgba($primary, 0.5);
+    box-shadow: 0 0 20px rgba($primary, 0.15);
+  }
+}
+
+@mixin glass-button-style {
+  @include glass-panel(0.08, 8px);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes blob-float {
+  0% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 30px) scale(0.9); }
+  100% { transform: translate(10px, -20px) scale(1.05); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounce-check {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba($primary, 0.15); }
+  50% { box-shadow: 0 0 40px rgba($primary, 0.3); }
+}
+
+@keyframes bar-fill {
+  from { width: 0; }
+}

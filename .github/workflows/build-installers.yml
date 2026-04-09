@@ -1,0 +1,325 @@
+name: Build Installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.version.outputs.app_version }}
+      release_label: ${{ steps.label.outputs.release_label }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Read app version
+        id: version
+        run: |
+          APP_VERSION=$(node -p "require('./convx-app/package.json').version")
+          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Compute release label
+        id: label
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            LABEL="${GITHUB_REF_NAME}"
+          else
+            LABEL="sha-${GITHUB_SHA::7}"
+          fi
+          echo "release_label=$LABEL" >> "$GITHUB_OUTPUT"
+
+  build-tauri-bundles:
+    needs: metadata
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Install Linux deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install frontend deps
+        working-directory: convx-app
+        run: npm ci
+
+      - name: Build Tauri bundle
+        working-directory: convx-app
+        env:
+          CONVX_LICENSE_PUBKEY: ${{ secrets.CONVX_LICENSE_PUBKEY }}
+        run: npm run tauri:bundle
+
+      - name: Install macOS bundled dependencies
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install ffmpeg vips pandoc poppler imagemagick
+
+      - name: Import Apple certificates
+        if: matrix.os == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/certs.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PASSWORD="ci-keychain-$(date +%s)"
+
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
+
+          echo "Imported identities:"
+          security find-identity -v "$KEYCHAIN_PATH"
+
+      - name: Build unified macOS PKG installer
+        if: matrix.os == 'macos-latest'
+        env:
+          SKIP_TAURI_BUILD: "1"
+          MACOS_APP_SIGN_IDENTITY: "Developer ID Application: Whefibo LLC (MJ6X6R5F99)"
+          MACOS_PKG_SIGN_IDENTITY: "Developer ID Installer: Whefibo LLC (MJ6X6R5F99)"
+        run: |
+          bash installers/macos/build-unified-installer.sh "${{ needs.metadata.outputs.app_version }}"
+
+      - name: Notarize macOS PKG
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          PKG_PATH="installers/macos/dist/ConvX-Setup.pkg"
+          echo "Submitting for notarization..."
+          xcrun notarytool submit "$PKG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 10m || echo "Notarization timed out or failed (non-blocking)"
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "$PKG_PATH" || true
+
+      - name: Upload bundle artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: convx-bundle-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}-${{ matrix.os }}
+          path: target/release/bundle
+
+      - name: Upload unified macOS PKG artifact
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: convx-macos-unified-pkg-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}
+          path: installers/macos/dist/ConvX-Setup.pkg
+
+  windows-bootstrapper:
+    runs-on: windows-latest
+    needs: [metadata, build-tauri-bundles]
+    if: always() && needs.metadata.result == 'success'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Windows bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: convx-bundle-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}-windows-latest
+          path: target/release/bundle
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build bootstrapper EXE
+        shell: pwsh
+        run: |
+          .\installers\windows\build-bootstrapper.ps1 -AppVersion "${{ needs.metadata.outputs.app_version }}"
+
+      - name: Upload bootstrapper artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: convx-windows-bootstrapper-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}
+          path: installers/windows/ConvX-Bootstrapper.exe
+
+  build-windows-bundled:
+    runs-on: windows-latest
+    needs: [metadata, build-tauri-bundles]
+    if: always() && needs.metadata.result == 'success'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Windows bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: convx-bundle-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}-windows-latest
+          path: target/release/bundle
+
+      - name: Download pre-collected deps from release
+        id: deps-release
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download deps-v2 -p "deps-windows.tar.gz" -D installers/windows/ 2>/dev/null
+          cd installers/windows && tar -xzf deps-windows.tar.gz && rm deps-windows.tar.gz
+          echo "hit=true" >> "$GITHUB_OUTPUT"
+
+      - name: Collect bundled dependencies (fallback)
+        if: steps.deps-release.outputs.hit != 'true'
+        shell: pwsh
+        run: |
+          .\installers\windows\collect-deps-windows.ps1
+
+      - name: Upload deps to release (first time)
+        if: steps.deps-release.outputs.hit != 'true'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd installers/windows && tar -czf deps-windows.tar.gz deps/
+          gh release create deps-v2 --title "Bundled Dependencies" --notes "Pre-collected dependency archives for CI" 2>/dev/null || true
+          gh release upload deps-v2 deps-windows.tar.gz --clobber
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build bundled installer
+        shell: pwsh
+        run: |
+          .\installers\windows\build-bundled-installer.ps1 -TauriDir "$env:GITHUB_WORKSPACE\target\release" -AppVersion "${{ needs.metadata.outputs.app_version }}"
+
+      - name: Upload bundled installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: convx-windows-bundled-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}
+          path: installers/windows/ConvX-Setup.exe
+
+  build-linux-bundled:
+    runs-on: ubuntu-latest
+    needs: [metadata, build-tauri-bundles]
+    if: always() && needs.metadata.result == 'success'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Linux bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: convx-bundle-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}-ubuntu-latest
+          path: target/release/bundle
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y patchelf libvips-tools poppler-utils dpkg-dev libfuse2
+
+      - name: Download pre-collected deps from release
+        id: deps-release
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download deps-v2 -p "deps-linux.tar.gz" -D installers/linux/ 2>/dev/null
+          cd installers/linux && tar -xzf deps-linux.tar.gz && rm deps-linux.tar.gz
+          echo "hit=true" >> "$GITHUB_OUTPUT"
+
+      - name: Collect bundled dependencies (fallback)
+        if: steps.deps-release.outputs.hit != 'true'
+        run: |
+          bash installers/linux/collect-deps-linux.sh installers/linux/deps
+
+      - name: Upload deps to release (first time)
+        if: steps.deps-release.outputs.hit != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd installers/linux && tar -czf deps-linux.tar.gz deps/
+          gh release create deps-v2 --title "Bundled Dependencies" --notes "Pre-collected dependency archives for CI" 2>/dev/null || true
+          gh release upload deps-v2 deps-linux.tar.gz --clobber
+
+      - name: Build bundled AppImage
+        run: |
+          APPIMAGE=$(find target/release/bundle -name "*.AppImage" | head -1)
+          if [ -n "$APPIMAGE" ]; then
+            bash installers/linux/build-bundled-appimage.sh "$APPIMAGE" installers/linux/deps \
+              "installers/linux/ConvX-Setup.AppImage"
+          else
+            echo "Warning: No AppImage found in bundle artifacts"
+          fi
+
+      - name: Build bundled .deb
+        run: |
+          DEB=$(find target/release/bundle -name "*.deb" | head -1)
+          if [ -n "$DEB" ]; then
+            bash installers/linux/build-bundled-deb.sh "$DEB" installers/linux/deps \
+              "installers/linux/ConvX-Setup.deb"
+          else
+            echo "Warning: No .deb found in bundle artifacts"
+          fi
+
+      - name: Upload bundled AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: convx-linux-bundled-appimage-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}
+          path: installers/linux/ConvX-Setup.AppImage
+          if-no-files-found: warn
+
+      - name: Upload bundled .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: convx-linux-bundled-deb-${{ needs.metadata.outputs.app_version }}-${{ needs.metadata.outputs.release_label }}
+          path: installers/linux/ConvX-Setup.deb
+          if-no-files-found: warn

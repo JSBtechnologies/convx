@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libvips-tools libvips-dev \
+            libheif-dev libheif1 libde265-dev libx265-dev \
+            pandoc poppler-utils
+
+      - name: Generate fixtures
+        working-directory: convx-core
+        run: ./tests/generate_fixtures.sh
+
+      - name: Rust format check
+        working-directory: convx-core
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: convx-core
+        run: cargo clippy -- -D warnings
+
+      - name: Tests
+        working-directory: convx-core
+        run: cargo test
