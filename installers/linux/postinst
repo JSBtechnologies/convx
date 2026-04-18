@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# postinst — Post-installation script for convx bundled .deb
+#
+# Creates Python venv from bundled Python and installs wheels offline.
+# Creates CLI symlinks in /usr/local/bin.
+
+set -e
+
+DEPS_DIR="/opt/convx/deps"
+CONVX_HOME="$HOME/.convx"
+
+# Create CLI and MCP symlinks (unified binary)
+CONVX_BIN=""
+if [ -f "/usr/bin/convx-app" ]; then
+  CONVX_BIN="/usr/bin/convx-app"
+elif [ -f "/usr/bin/convx" ]; then
+  CONVX_BIN="/usr/bin/convx"
+fi
+
+if [ -n "$CONVX_BIN" ]; then
+  ln -sf "$CONVX_BIN" /usr/local/bin/convx 2>/dev/null || true
+  ln -sf "$CONVX_BIN" /usr/local/bin/convx-mcp 2>/dev/null || true
+fi
+
+# Create Python venv from bundled Python
+BUNDLED_PYTHON="$DEPS_DIR/python/bin/python3"
+VENV_DIR="$CONVX_HOME/venv"
+
+if [ -f "$BUNDLED_PYTHON" ] && [ ! -f "$VENV_DIR/bin/python3" ]; then
+  echo "Setting up Python environment..."
+  mkdir -p "$CONVX_HOME"
+
+  "$BUNDLED_PYTHON" -m venv "$VENV_DIR" 2>/dev/null || true
+
+  # Install wheels offline
+  WHEELS_DIR="$DEPS_DIR/wheels"
+  VENV_PIP="$VENV_DIR/bin/pip3"
+  if [ -f "$VENV_PIP" ] && [ -d "$WHEELS_DIR" ]; then
+    "$VENV_PIP" install --no-index --find-links "$WHEELS_DIR" \
+      pandas openpyxl weasyprint pdf2docx mobi pyarrow numpy h5py 2>/dev/null || true
+  fi
+fi
+
+echo "ConvX installation complete."

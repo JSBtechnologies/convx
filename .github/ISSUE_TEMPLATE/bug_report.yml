@@ -1,0 +1,53 @@
+name: Bug Report
+description: Something isn't working
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: ConvX version
+      description: Output of `convx version`
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+
+  - type: textarea
+    id: check
+    attributes:
+      label: Dependency check
+      description: Output of `convx check`
+      render: shell
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command run
+      description: The exact command you ran
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Full output / error
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true

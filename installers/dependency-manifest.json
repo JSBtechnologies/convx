@@ -1,0 +1,78 @@
+{
+  "name": "convx-runtime-dependencies",
+  "version": "3",
+  "dependencies": {
+    "ffmpeg": {
+      "required": true,
+      "minimumVersion": "6.0",
+      "checkCommand": "ffmpeg -version",
+      "purpose": "Video/audio conversion"
+    },
+    "libvips": {
+      "required": true,
+      "minimumVersion": "8.14",
+      "checkCommand": "vips --version",
+      "purpose": "Image conversion"
+    },
+    "pandoc": {
+      "required": true,
+      "minimumVersion": "3.0",
+      "checkCommand": "pandoc --version",
+      "purpose": "Document conversion (DOCX, HTML, MD, TXT)"
+    },
+    "poppler": {
+      "required": true,
+      "minimumVersion": "22.0",
+      "checkCommand": "pdftoppm -v",
+      "purpose": "PDF to image export"
+    },
+    "libreoffice": {
+      "required": true,
+      "minimumVersion": "7.0",
+      "checkCommand": "soffice --version",
+      "purpose": "DOC/PPTX/XLSX conversion (headless)"
+    },
+    "python3": {
+      "required": true,
+      "minimumVersion": "3.10",
+      "checkCommand": "python3 --version",
+      "purpose": "Runtime for Python-based converters"
+    },
+    "pip:pandas": {
+      "required": true,
+      "checkCommand": "python3 -c \"import pandas\"",
+      "purpose": "Data format conversion"
+    },
+    "pip:openpyxl": {
+      "required": true,
+      "checkCommand": "python3 -c \"import openpyxl\"",
+      "purpose": "Excel file support"
+    },
+    "pip:weasyprint": {
+      "required": true,
+      "checkCommand": "python3 -c \"import weasyprint\"",
+      "purpose": "PDF engine for Pandoc"
+    },
+    "pip:pdf2docx": {
+      "required": true,
+      "checkCommand": "python3 -c \"import pdf2docx\"",
+      "purpose": "PDF to DOCX conversion"
+    },
+    "pip:mobi": {
+      "required": true,
+      "checkCommand": "python3 -c \"import mobi\"",
+      "purpose": "MOBI to EPUB ebook conversion"
+    }
+  },
+  "platforms": {
+    "macos": {
+      "installCommand": "brew install ffmpeg vips pandoc poppler python@3 && brew install --cask libreoffice && python3 -m venv ~/.convx/venv && ~/.convx/venv/bin/pip install pandas openpyxl weasyprint pdf2docx mobi"
+    },
+    "windows": {
+      "installCommand": "winget install Gyan.FFmpeg libvips.libvips JohnMacFarlane.Pandoc TheDocumentFoundation.LibreOffice Python.Python.3.13 && python -m venv %USERPROFILE%\\.convx\\venv && %USERPROFILE%\\.convx\\venv\\Scripts\\pip install pandas openpyxl weasyprint pdf2docx mobi"
+    },
+    "linux": {
+      "installCommand": "sudo apt-get install -y ffmpeg libvips-tools pandoc poppler-utils libreoffice-core libreoffice-writer libreoffice-calc libreoffice-impress python3 python3-venv && python3 -m venv ~/.convx/venv && ~/.convx/venv/bin/pip install pandas openpyxl weasyprint pdf2docx \"PyMuPDF==1.23.26\" mobi pyarrow numpy h5py"
+    }
+  }
+}

@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+LOG_FILE="/tmp/convx-installer.log"
+exec >>"$LOG_FILE" 2>&1
+
+echo "[convx postinstall] started at $(date)"
+
+APP_PATH="/Applications/convx.app"
+MACOS_BIN_DIR="$APP_PATH/Contents/MacOS"
+RESOURCES_DIR="$APP_PATH/Contents/Resources"
+
+# ── Symlink unified binary to /usr/local/bin ──────────────────────
+mkdir -p /usr/local/bin
+
+# The convx-cli and convx-mcp are symlinks to the main Tauri binary inside the bundle.
+# We symlink them into /usr/local/bin so they're on PATH.
+if [[ -f "$MACOS_BIN_DIR/convx-cli" || -L "$MACOS_BIN_DIR/convx-cli" ]]; then
+  ln -sf "$MACOS_BIN_DIR/convx-cli" /usr/local/bin/convx
+  echo "[convx postinstall] symlinked convx CLI to /usr/local/bin/convx"
+fi
+
+if [[ -f "$MACOS_BIN_DIR/convx-mcp" || -L "$MACOS_BIN_DIR/convx-mcp" ]]; then
+  ln -sf "$MACOS_BIN_DIR/convx-mcp" /usr/local/bin/convx-mcp
+  echo "[convx postinstall] symlinked convx-mcp to /usr/local/bin/convx-mcp"
+fi
+
+# ── Set up Python venv from bundled wheels ──────────────────────────────
+WHEELS_DIR="$RESOURCES_DIR/wheels"
+BUNDLED_PY="$RESOURCES_DIR/Python.framework/Versions/Current/bin/python3"
+
+# Get the real console user (postinstall runs as root)
+CONSOLE_USER="$(stat -f "%Su" /dev/console 2>/dev/null || true)"
+
+if [[ -n "$CONSOLE_USER" && "$CONSOLE_USER" != "root" ]]; then
+  USER_HOME="$(eval echo "~$CONSOLE_USER")"
+  VENV_DIR="$USER_HOME/.convx/venv"
+
+  # Find a Python to create the venv
+  PYTHON=""
+  if [[ -f "$BUNDLED_PY" ]]; then
+    PYTHON="$BUNDLED_PY"
+  elif command -v python3 >/dev/null 2>&1; then
+    PYTHON="$(command -v python3)"
+  elif [[ -f /opt/homebrew/bin/python3 ]]; then
+    PYTHON="/opt/homebrew/bin/python3"
+  elif [[ -f /usr/local/bin/python3 ]]; then
+    PYTHON="/usr/local/bin/python3"
+  fi
+
+  if [[ -n "$PYTHON" ]]; then
+    echo "[convx postinstall] using Python: $PYTHON"
+
+    # Create venv if it doesn't exist
+    if [[ ! -d "$VENV_DIR/bin" ]]; then
+      echo "[convx postinstall] creating venv at $VENV_DIR"
+      sudo -u "$CONSOLE_USER" mkdir -p "$USER_HOME/.convx"
+      sudo -u "$CONSOLE_USER" "$PYTHON" -m venv "$VENV_DIR" || {
+        echo "[convx postinstall] venv creation failed (non-fatal)"
+      }
+    fi
+
+    # Install from bundled wheels if available
+    if [[ -d "$WHEELS_DIR" && -f "$VENV_DIR/bin/pip3" ]]; then
+      echo "[convx postinstall] installing Python modules from bundled wheels"
+      sudo -u "$CONSOLE_USER" "$VENV_DIR/bin/pip3" install \
+        --find-links "$WHEELS_DIR" \
+        --no-index \
+        pandas openpyxl weasyprint pdf2docx mobi pyarrow numpy h5py 2>&1 || {
+        # If --no-index fails (missing wheels), try with PyPI fallback
+        echo "[convx postinstall] offline install failed, trying with PyPI fallback"
+        sudo -u "$CONSOLE_USER" "$VENV_DIR/bin/pip3" install \
+          --find-links "$WHEELS_DIR" \
+          pandas openpyxl weasyprint pdf2docx mobi pyarrow numpy h5py 2>&1 || {
+          echo "[convx postinstall] pip install failed (non-fatal, app will retry on first launch)"
+        }
+      }
+    else
+      echo "[convx postinstall] no bundled wheels or pip not available, skipping module install"
+    fi
+  else
+    echo "[convx postinstall] python3 not found, skipping venv setup"
+  fi
+else
+  echo "[convx postinstall] could not determine console user, skipping venv setup"
+fi
+
+# ── Launch the app for first-run experience ─────────────────────────────
+if [[ -d "$APP_PATH" ]]; then
+  if [[ -n "$CONSOLE_USER" && "$CONSOLE_USER" != "root" ]]; then
+    /usr/bin/sudo -u "$CONSOLE_USER" /usr/bin/open -a "$APP_PATH" || true
+  fi
+fi
+
+echo "[convx postinstall] completed at $(date)"
+exit 0

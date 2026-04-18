@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+LOG_FILE="/tmp/convx-installer.log"
+exec >>"$LOG_FILE" 2>&1
+
+echo "[convx preinstall] started at $(date)"
+
+# Ensure previous app install is removed so upgrades/reinstalls are deterministic.
+if [[ -d "/Applications/convx.app" ]]; then
+  rm -rf "/Applications/convx.app"
+  echo "[convx preinstall] removed existing /Applications/convx.app"
+fi
+
+echo "[convx preinstall] completed at $(date)"
+exit 0
